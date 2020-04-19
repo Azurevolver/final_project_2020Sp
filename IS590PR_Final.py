@@ -24,8 +24,6 @@ def getCOVID19DataFromRemote(url, date):
     df['Date'] = date
     return df
 
-    
-
 if __name__ == '__main__':
     datelist = dateListGenerate()
     df = pd.DataFrame(columns = ['Date', 'Country', 'Confirmed', 'Deaths', 'Recovered'])
@@ -33,12 +31,11 @@ if __name__ == '__main__':
         url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/'+date+'.csv'
         date_info = getCOVID19DataFromRemote(url, date)
         df = pd.concat([df, date_info], sort=False)
-    df_tmp = df.copy()
-    df = df_tmp
     df.loc[df['Country']!='US', 'Country'] = 'Taiwan'
     df_TW = df[df['Country']=='Taiwan']
     df_US = df[df['Country']=='US']
 
+# Plot
 import matplotlib.pyplot as plt
 x1 = df_TW['Date']
 y1 = df_TW['Confirmed']
