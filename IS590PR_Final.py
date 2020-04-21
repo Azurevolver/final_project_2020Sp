@@ -79,7 +79,7 @@ def generate_date_list(start_date_str: str, end_date: str = datetime.datetime.to
     return date_list
 
 
-def getCOVID19DataFromRemote(url, date):
+def get_CODIV19_data_from_remote(url: str, date):
     df = pd.read_csv(url, usecols = lambda x: x in ['Country/Region', 'Country_Region', 'Confirmed', 'Deaths', 'Recovered'])
     df.columns = ['Country', 'Confirmed', 'Deaths', 'Recovered']
     df = df[df['Country'].isin(['US', 'Taiwan', 'Taiwan*', 'Taipei and environs'])]
@@ -93,8 +93,8 @@ if __name__ == '__main__':
     datelist = generate_date_list(start_date)
     df = pd.DataFrame(columns = ['Date', 'Country', 'Confirmed', 'Deaths', 'Recovered'])
     for date in datelist:
-        url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/'+date+'.csv'
-        date_info = getCOVID19DataFromRemote(url, date)
+        url = Constant.DATA_URL + date + Constant.DATA_URL_POSTFIX
+        date_info = get_CODIV19_data_from_remote(url, date)
         df = pd.concat([df, date_info], sort=False)
     df.loc[df['Country']!='US', 'Country'] = 'Taiwan'
     df.to_csv('confirmedData.csv', index = False)
