@@ -2,20 +2,82 @@
 """
 Created on Sat Apr 18 21:53:56 2020
 
-@author: Jasmine Kuo
+@author: Jasmine Kuo, Alan Chen
 """
 
 import pandas as pd
 import datetime
 import matplotlib.pyplot as plt
 from pytrends.request import TrendReq
+import Constant
+import doctest
 
-def dateListGenerate():
-    start = datetime.datetime.strptime('01-22-2020', '%m-%d-%Y')
-    end = datetime.datetime.today()
-    datelist = [start + datetime.timedelta(days=x) for x in range(0, (end-start).days)]
-    datelist = [date.strftime("%m-%d-%Y") for date in datelist]
-    return datelist
+
+def generate_date_list(start_date_str: str, end_date: str = datetime.datetime.today()) -> list:
+    """
+    Create a list of date
+    :param start_date_str: date string in %m-%d-%Y format
+    :param end_date: date string in %m-%d-%Y format
+    :return: a list of date
+
+    >>> start_date = ""
+    >>> generate_date_list(start_date)
+    Traceback (most recent call last):
+    ValueError: Empty start date
+    >>> start_date = "01-22-2020"
+    >>> end_date = ""
+    >>> generate_date_list(start_date, end_date)
+    Traceback (most recent call last):
+    ValueError: Empty end date
+    >>> start_date = "01-32-2020"
+    >>> generate_date_list(start_date)
+    Value Error occur: ValueError("time data '01-32-2020' does not match format '%m-%d-%Y'")
+    >>> start_date = "01/22/2020"
+    >>> generate_date_list(start_date)
+    Value Error occur: ValueError("time data '01/22/2020' does not match format '%m-%d-%Y'")
+    >>> start_date = "01-22-2020"
+    >>> end_date = "04-18-2020"
+    >>> generate_date_list(start_date, end_date)
+    Traceback (most recent call last):
+    ValueError: Wrong end date
+    >>> start_date = "04-21-2020"
+    >>> end_date_str = "04-18-2020"
+    >>> end_date = datetime.datetime.strptime(end_date_str, Constant.DATE_FORMAT)
+    >>> generate_date_list(start_date, end_date)
+    Traceback (most recent call last):
+    ValueError: Start date cannot larger than end date
+    >>> start_date = "04-11-2020"
+    >>> end_date_str = "04-13-2020"
+    >>> end_date = datetime.datetime.strptime(end_date_str, Constant.DATE_FORMAT)
+    >>> date_list = generate_date_list(start_date, end_date)
+    >>> print(date_list)
+    ['04-11-2020', '04-12-2020']
+    """
+    if start_date_str == "" or start_date_str is None:
+        raise ValueError("Empty start date")
+    elif end_date == "" or end_date is None:
+        raise ValueError("Empty end date")
+
+    start = None
+    try:
+        start = datetime.datetime.strptime(start_date_str, Constant.DATE_FORMAT)
+    except ValueError as error:
+        print("Value Error occur:", repr(error))
+        return
+
+    end = end_date
+    if isinstance(end, datetime.date) is False:
+        raise ValueError("Wrong end date")
+        return
+
+    if end < start:
+        raise ValueError("Start date cannot larger than end date")
+        return
+
+    date_list = [start + datetime.timedelta(days=x) for x in range(0, (end-start).days)]
+    date_list = [date.strftime(Constant.DATE_FORMAT) for date in date_list]
+    return date_list
+
 
 def getCOVID19DataFromRemote(url, date):
     df = pd.read_csv(url, usecols = lambda x: x in ['Country/Region', 'Country_Region', 'Confirmed', 'Deaths', 'Recovered'])
@@ -25,8 +87,10 @@ def getCOVID19DataFromRemote(url, date):
     df['Date'] = date
     return df
 
+
 if __name__ == '__main__':
-    datelist = dateListGenerate()
+    start_date = "01-22-2020"
+    datelist = generate_date_list(start_date)
     df = pd.DataFrame(columns = ['Date', 'Country', 'Confirmed', 'Deaths', 'Recovered'])
     for date in datelist:
         url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/'+date+'.csv'
@@ -162,5 +226,5 @@ if __name__ == '__main__':
     ax2.legend(lines + lines2, labels + labels2, loc=0)
     
     fig.savefig('ConfirmedTrend_GoogleTrend_Comp_US.png', bbox_inches = "tight")
-    
+
     
