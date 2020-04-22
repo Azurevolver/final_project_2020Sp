@@ -151,6 +151,7 @@ def get_dependent_df_by_country(origin_df: pd.DataFrame, country: str = "") -> p
     :param origin_df: origin data frame has specific date range and multiple conutries
     :param country: the target country string
     :return: a pandas dataframe of COVID-19 data in the country
+    #TODO: Test cases
     """
     if country not in ["Taiwan", "US"] or country == "" or country is None:
         raise ValueError("No such country")
@@ -158,17 +159,41 @@ def get_dependent_df_by_country(origin_df: pd.DataFrame, country: str = "") -> p
     return origin_df[origin_df['Country'] == country].copy()
 
 
+def fetch_countries_COVID19_data_with_dates(dates: list) -> pd.DataFrame:
+    """
+    Create new time-series data frame of COVID-19 by sending request to JHU open-sourced project on Github
+    :param dates: dates list
+    :return: a data frame of COVID-19 within specific countries and time
+    >>> dates = []
+    >>> fetch_countries_COVID19_data_with_dates(dates)
+    Traceback (most recent call last):
+    ValueError: Empty date list
+    >>> start = "01-22-2020"
+    >>> end = datetime.datetime.strptime("01-23-2020", Constant.DATE_FORMAT)
+    >>> date_list = generate_date_list(start, end)
+    >>> new_df = fetch_countries_COVID19_data_with_dates(date_list)
+    >>> print(new_df.iloc[0].Country + " has " + str(new_df.iloc[0].Confirmed) + " confirmed case(s)")
+    Taiwan has 1.0 confirmed case(s)
+    """
+    if len(dates) == 0:
+        raise ValueError("Empty date list")
+        return None
+
+    df = pd.DataFrame(columns=['Date', 'Country', 'Confirmed', 'Deaths', 'Recovered'])
+    for date in dates:
+        request_url = Constant.DATA_URL + date + Constant.DATA_POSTFIX_CSV
+        date_info = get_CODIV19_data_from_remote(request_url, date)
+        df = pd.concat([df, date_info], sort=False)
+
+    return df
+
 if __name__ == '__main__':
     create_data_folder()
 
     start_date = "01-22-2020"
-    datelist = generate_date_list(start_date)
+    date_list = generate_date_list(start_date)
 
-    df = pd.DataFrame(columns=['Date', 'Country', 'Confirmed', 'Deaths', 'Recovered'])
-    for date in datelist:
-        request_url = Constant.DATA_URL + date + Constant.DATA_POSTFIX_CSV
-        date_info = get_CODIV19_data_from_remote(request_url, date)
-        df = pd.concat([df, date_info], sort=False)
+    df = fetch_countries_COVID19_data_with_dates(date_list)
 
     df.loc[df['Country'] != 'US', 'Country'] = 'Taiwan'
     df.to_csv('confirmedData.csv', index=False)
