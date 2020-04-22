@@ -145,6 +145,19 @@ def create_data_folder():
         print("Successfully created the directory %s " % path)
 
 
+def get_dependent_df_by_country(origin_df: pd.DataFrame, country: str = "") -> pd.DataFrame:
+    """
+    Access the specific COVID-19 data in the target country
+    :param origin_df: origin data frame has specific date range and multiple conutries
+    :param country: the target country string
+    :return: a pandas dataframe of COVID-19 data in the country
+    """
+    if country not in ["Taiwan", "US"] or country == "" or country is None:
+        raise ValueError("No such country")
+
+    return origin_df[origin_df['Country'] == country].copy()
+
+
 if __name__ == '__main__':
     create_data_folder()
 
@@ -157,11 +170,12 @@ if __name__ == '__main__':
         date_info = get_CODIV19_data_from_remote(request_url, date)
         df = pd.concat([df, date_info], sort=False)
 
-    df.loc[df['Country']!='US', 'Country'] = 'Taiwan'
-    df.to_csv('confirmedData.csv', index = False)
-    
-    df_TW = df[df['Country']=='Taiwan'].copy()
-    df_US = df[df['Country']=='US'].copy()
+    df.loc[df['Country'] != 'US', 'Country'] = 'Taiwan'
+    df.to_csv('confirmedData.csv', index=False)
+
+    # Get independent data frame
+    df_TW = get_dependent_df_by_country(df, "Taiwan")
+    df_US = get_dependent_df_by_country(df, "US")
     
     # Plot - Taiwan & US Confirmed Number Comparison
     x1 = df_TW['Date']
