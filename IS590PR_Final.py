@@ -11,9 +11,10 @@ import matplotlib.pyplot as plt
 from pytrends.request import TrendReq
 import Constant
 import doctest
+import os
 
 
-def generate_date_list(start_date_str: str, end_date: str = datetime.datetime.today()) -> list:
+def generate_date_list(start_date_str: str, end_date: datetime.date = datetime.datetime.today()) -> list:
     """
     Create a list of date
     :param start_date_str: date string in %m-%d-%Y format
@@ -39,7 +40,7 @@ def generate_date_list(start_date_str: str, end_date: str = datetime.datetime.to
     >>> end_date = "04-18-2020"
     >>> generate_date_list(start_date, end_date)
     Traceback (most recent call last):
-    ValueError: Wrong end date
+    TypeError: Type Error: end date should be datetime.date type
     >>> start_date = "04-21-2020"
     >>> end_date_str = "04-18-2020"
     >>> end_date = datetime.datetime.strptime(end_date_str, Constant.DATE_FORMAT)
@@ -55,8 +56,10 @@ def generate_date_list(start_date_str: str, end_date: str = datetime.datetime.to
     """
     if start_date_str == "" or start_date_str is None:
         raise ValueError("Empty start date")
+        return
     elif end_date == "" or end_date is None:
         raise ValueError("Empty end date")
+        return
 
     start = None
     try:
@@ -67,7 +70,7 @@ def generate_date_list(start_date_str: str, end_date: str = datetime.datetime.to
 
     end = end_date
     if isinstance(end, datetime.date) is False:
-        raise ValueError("Wrong end date")
+        raise TypeError("Type Error: end date should be datetime.date type")
         return
 
     if end < start:
@@ -79,23 +82,81 @@ def generate_date_list(start_date_str: str, end_date: str = datetime.datetime.to
     return date_list
 
 
-def get_CODIV19_data_from_remote(url: str, date):
-    df = pd.read_csv(url, usecols = lambda x: x in ['Country/Region', 'Country_Region', 'Confirmed', 'Deaths', 'Recovered'])
-    df.columns = ['Country', 'Confirmed', 'Deaths', 'Recovered']
-    df = df[df['Country'].isin(['US', 'Taiwan', 'Taiwan*', 'Taipei and environs'])]
-    df = df.groupby(['Country']).sum().reset_index()
-    df['Date'] = date
-    return df
+def get_CODIV19_data_from_remote(url: str, date: str) -> pd.DataFrame:
+    """
+    Access the COVID-19 confirmed cases from Taiwan CDC and US CDC through JHU open-sourced project on github
+    :param url: the prefix of JHU open-sourced project URL
+    :param date: one specific date in %m-%d-%Y format
+    :return: a data frame contains COVID-19 data within target countries
+    >>> date = "01-22-2020"
+    >>> url = Constant.DATA_URL + date + Constant.DATA_POSTFIX_CSV
+    >>> jan_22_df = get_CODIV19_data_from_remote(url, date)
+    >>> jan_22_df.iloc[0].Country
+    'Taiwan'
+    >>> jan_22_df.iloc[0].Confirmed
+    1.0
+    >>> empty_date_df = get_CODIV19_data_from_remote(url, "")
+    Traceback (most recent call last):
+    ValueError: Empty date
+    """
+    if date == "" or date is None:
+        raise ValueError("Empty date")
+        return
+
+    file_path = os.getcwd() + "/data/" + date + Constant.DATA_POSTFIX_CSV
+    single_date_df = None
+    if os.path.exists(file_path) is False:
+        try:
+            single_date_df = pd.read_csv(url, usecols=lambda x: x in ['Country/Region', 'Country_Region', 'Confirmed', 'Deaths', 'Recovered'])
+            # print("-----------------------------------------" + date + "--------------------------------------------------")
+            # print(single_date_df.to_string())
+        except FileNotFoundError as error:
+            print("FileNotFoundError occurs: " + repr(error))
+            return
+
+        single_date_df.to_csv(file_path, header=True, index=False)
+    else:
+        single_date_df = pd.read_csv(file_path)
+        # print("[DEBUG] " + date + "data file exist")
+
+    single_date_df.columns = ['Country', 'Confirmed', 'Deaths', 'Recovered']
+    single_date_df = single_date_df[single_date_df['Country'].isin(['US', 'Taiwan', 'Taiwan*', 'Taipei and environs'])]
+    single_date_df = single_date_df.groupby(['Country']).sum().reset_index()
+    single_date_df['Date'] = date
+
+    return single_date_df
+
+
+def create_data_folder():
+    path = os.getcwd()
+    # print("[DEBUG] The current working directory is %s" % path)
+
+    # check whether current path has data folder
+    path += "/data"
+    if os.path.exists(path):
+        # print("[DEBUG] data folder existed")
+        return
+
+    try:
+        os.mkdir(path)
+    except OSError:
+        print("Creation of the directory %s failed" % path)
+    else:
+        print("Successfully created the directory %s " % path)
 
 
 if __name__ == '__main__':
+    create_data_folder()
+
     start_date = "01-22-2020"
     datelist = generate_date_list(start_date)
-    df = pd.DataFrame(columns = ['Date', 'Country', 'Confirmed', 'Deaths', 'Recovered'])
+
+    df = pd.DataFrame(columns=['Date', 'Country', 'Confirmed', 'Deaths', 'Recovered'])
     for date in datelist:
-        url = Constant.DATA_URL + date + Constant.DATA_URL_POSTFIX
-        date_info = get_CODIV19_data_from_remote(url, date)
+        request_url = Constant.DATA_URL + date + Constant.DATA_POSTFIX_CSV
+        date_info = get_CODIV19_data_from_remote(request_url, date)
         df = pd.concat([df, date_info], sort=False)
+
     df.loc[df['Country']!='US', 'Country'] = 'Taiwan'
     df.to_csv('confirmedData.csv', index = False)
     
@@ -225,6 +286,5 @@ if __name__ == '__main__':
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax2.legend(lines + lines2, labels + labels2, loc=0)
     
-    fig.savefig('ConfirmedTrend_GoogleTrend_Comp_US.png', bbox_inches = "tight")
+    fig.savefig('ConfirmedTrend_GoogleTrend_Comp_US.png', bbox_inches="tight")
 
-    
