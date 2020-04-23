@@ -196,6 +196,8 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
     :param region: the region
     :param save_csv:
     :return: a data frame of keywords search volume in target region
+    #TODO: Finish test case
+
     >>> pytrend = TrendReq(hl='en-US', tz=360)
     >>> start_date = "2020-01-20"
     >>> end_date = "2020-01-31"
@@ -204,8 +206,7 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
     >>> str(US_df.iloc[-1]["date"])
     '2020-01-31 00:00:00'
     >>> US_df.iloc[-1]["mask"]
-    98
-    #TODO: Finish test case
+    96
     """
     if region not in ["TW", "US"]:
         raise ValueError("Region is not well defined")
@@ -225,6 +226,43 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
 
     return google_trend_df
 
+
+def plot_items_with_confirmed_case(region_df: pd.DataFrame, item_name_list: list, label_list: list, region: str):
+    """
+
+    :param region_df:
+    :param item_name_list:
+    :param label_list:
+    :param region:
+    :return:
+    TODO: Test case
+    """
+    x = region_df['date'].dt.date
+    popular_item_df_list = []
+    for name in item_name_list:
+        popular_item_df = region_df[name]
+        popular_item_df_list.append(popular_item_df)
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(x, popular_item_df_list[0], lw=4, label='Confirmed Number')
+    ax.grid(True)
+    ax.set_xticks(x[::3])
+    ax.set_xticklabels(x[::3], rotation=60)
+    ax.set_title(region, fontsize=24)
+    ax.set_ylabel('Confirmed Number', fontsize=18, color="Blue")
+    ax2 = ax.twinx()
+
+    for i in range(1, len(popular_item_df_list)):
+        ax2.plot(x, popular_item_df_list[i], lw=2, label=label_list[i])
+
+    ax2.set_xticks(x[::3])
+    ax2.set_xticklabels(x[::3], rotation=60)
+    ax2.set_ylabel('Google Trend', fontsize=18, color="Red")
+    lines, labels = ax.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines + lines2, labels + labels2, loc=0)
+
+    fig.savefig('ConfirmedTrend_GoogleTrend_Comp_' + region + '.png', bbox_inches="tight")
 
 if __name__ == '__main__':
     """
@@ -307,64 +345,11 @@ if __name__ == '__main__':
     
     # Plot - Confirmed Trend and Google Trend Comparison
     # TW
-    x = df_TW_comb['date'].dt.date
-    y1 = df_TW_comb['Confirmed']
-    y2 = df_TW_comb['口罩']
-    y3 = df_TW_comb['酒精']
-    y4 = df_TW_comb['乾洗手']
-    y5 = df_TW_comb['衛生紙']
-    y6 = df_TW_comb['消毒']
-    
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(x, y1, lw=4, label='Confirmed Number')
-    ax.grid(True)
-    ax.set_xticks(x[::3])
-    ax.set_xticklabels(x[::3], rotation=60)
-    ax.set_title('Taiwan', fontsize=24)
-    ax.set_ylabel('Confirmed Number', fontsize=18, color="Blue")
-    ax2 = ax.twinx()
-    ax2.plot(x, y2, lw=2, label = 'mask')
-    ax2.plot(x, y3, lw=2, label = 'alcohol')
-    ax2.plot(x, y4, lw=2, label = 'sanitizer')
-    ax2.plot(x, y5, lw=2, label = 'toilet paper')
-    ax2.plot(x, y6, lw=2, label = 'disinfectants')
-    ax2.set_xticks(x[::3])
-    ax2.set_xticklabels(x[::3], rotation=60)
-    ax2.set_ylabel('Google Trend', fontsize=18, color="Red")
-    lines, labels = ax.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines + lines2, labels + labels2, loc=0)
-    
-    fig.savefig('ConfirmedTrend_GoogleTrend_Comp_TW.png', bbox_inches = "tight")
-    
+    label_list = ['Confirmed Number', 'mask', 'alcohol', 'sanitizer', 'toilet paper', 'disinfectants']
+    tw_item_name_list = ['Confirmed', '口罩', '酒精', '乾洗手', '衛生紙', '消毒']
+    plot_items_with_confirmed_case(df_TW_comb, tw_item_name_list, label_list, "Taiwan")
+
     # US
-    x = df_US_comb['date'].dt.date
-    y1 = df_US_comb['Confirmed']
-    y2 = df_US_comb['mask']
-    y3 = df_US_comb['alcohol']
-    y4 = df_US_comb['sanitizer']
-    y5 = df_US_comb['toilet paper']
-    y6 = df_US_comb['disinfectants']
-    
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(x, y1, lw=4, label='Confirmed Number')
-    ax.grid(True)
-    ax.set_xticks(x[::3])
-    ax.set_xticklabels(x[::3], rotation=60)
-    ax.set_title('US', fontsize=24)
-    ax.set_ylabel('Confirmed Number', fontsize=18, color="Blue")
-    ax2 = ax.twinx()
-    ax2.plot(x, y2, lw=2, label = 'mask')
-    ax2.plot(x, y3, lw=2, label = 'alcohol')
-    ax2.plot(x, y4, lw=2, label = 'sanitizer')
-    ax2.plot(x, y5, lw=2, label = 'toilet paper')
-    ax2.plot(x, y6, lw=2, label = 'disinfectants')
-    ax2.set_xticks(x[::3])
-    ax2.set_xticklabels(x[::3], rotation=60)
-    ax2.set_ylabel('Google Trend', fontsize=18, color="Red")
-    lines, labels = ax.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines + lines2, labels + labels2, loc=0)
-    
-    fig.savefig('ConfirmedTrend_GoogleTrend_Comp_US.png', bbox_inches="tight")
+    us_item_name_list = ['Confirmed', 'mask', 'alcohol', 'sanitizer', 'toilet paper', 'disinfectants']
+    plot_items_with_confirmed_case(df_TW_comb, tw_item_name_list, label_list, "US")
 
