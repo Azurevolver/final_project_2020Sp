@@ -264,6 +264,7 @@ def plot_items_with_confirmed_case(region_df: pd.DataFrame, item_name_list: list
 
     fig.savefig('ConfirmedTrend_GoogleTrend_Comp_' + region + '.png', bbox_inches="tight")
 
+
 if __name__ == '__main__':
     """
     H1:
@@ -351,5 +352,5 @@ if __name__ == '__main__':
 
     # US
     us_item_name_list = ['Confirmed', 'mask', 'alcohol', 'sanitizer', 'toilet paper', 'disinfectants']
-    plot_items_with_confirmed_case(df_TW_comb, tw_item_name_list, label_list, "US")
+    plot_items_with_confirmed_case(df_US_comb, us_item_name_list, label_list, "US")
 
