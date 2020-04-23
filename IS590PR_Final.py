@@ -226,37 +226,84 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
 
     return google_trend_df
 
+def plot_google_trend_of_item(df: pd.DataFrame, region: str, select = [], figure_stage = ''):
+    """
+    Plot the google trend of each item
+    :param df:
+    :param region:
+    :param select:
+    :return:
+    """
+    fig, ax = plt.subplots(nrows=5, ncols=2, figsize=(12, 10))
+    x = df['date'].dt.date
+    for i in range(df.shape[1]-1):
+        if df.columns[i+1] in select:
+            ax[i%5, int(i/5)].plot(x, df[df.columns[i+1]], color = 'red')
+        else:
+            ax[i%5, int(i/5)].plot(x, df[df.columns[i+1]])
+        ax[i%5, int(i/5)].grid(True)
+        ax[i%5, int(i/5)].set_title(region+' - '+df.columns[i+1], fontsize=14)
+        ax[i%5, int(i/5)].set_ylabel('Google Trend', fontsize=12)
+    fig.autofmt_xdate()
+    fig.tight_layout()
+    fig.savefig('GoogleTrend_' + region + '_' + figure_stage + '.png', bbox_inches="tight")
 
-def plot_items_with_confirmed_case(region_df: pd.DataFrame, item_name_list: list, label_list: list, region: str):
+def select_item_impacted_by_covid19(df: pd.DataFrame) -> list:
+    """
+    Select the items impacted by COVID-19 by long-term observation.
+    The select criteria is the skew of the google trend should larger than 4 and the max of google trend before 2020 should lower than 50.
+    :param df:
+    :return:
+    """
+    kw_list = []
+    for item in df.columns[1:]:
+        skew = df[item].skew()
+        past_max = df[df['date'].dt.date<datetime.date(2020, 1, 1)][item].max()
+        if skew>4 and past_max<50:
+            kw_list.append(item)
+    return kw_list
+
+def select_representative_kw(df: pd.DataFrame, impacted_item: list) -> list:
+    """
+    Select the representative items which has sharp increase due to COVID-19.
+    :param df:
+    :param impacted_item:
+    :return:
+    """
+    df = pd.concat([df['date'], df[impacted_item]], sort=False, axis = 1)
+    kw_list = []
+    for item in df.columns[1:]:
+        max_idx = df[item].idxmax()
+        date_bound = df['date'][max_idx]-datetime.timedelta(days=14)
+        past_max = df[df['date'].dt.date<date_bound][item].max()
+        current_max = df[df['date'].dt.date>date_bound][item].max()
+        if past_max<30 and current_max>90:
+            kw_list.append(item)
+    return kw_list
+
+def plot_items_with_confirmed_case(region_df: pd.DataFrame, item_name_list: list, region: str):
     """
 
     :param region_df:
     :param item_name_list:
-    :param label_list:
     :param region:
     :return:
     TODO: Test case
     """
     x = region_df['date'].dt.date
-    popular_item_df_list = []
-    for name in item_name_list:
-        popular_item_df = region_df[name]
-        popular_item_df_list.append(popular_item_df)
-
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(x, popular_item_df_list[0], lw=4, label='Confirmed Number')
+    ax.plot(x, region_df['Confirmed'], lw=4, label='Confirmed Number')
     ax.grid(True)
     ax.set_xticks(x[::3])
-    ax.set_xticklabels(x[::3], rotation=60)
+    ax.set_xticklabels(x[::3], rotation=45)
     ax.set_title(region, fontsize=24)
     ax.set_ylabel('Confirmed Number', fontsize=18, color="Blue")
+
     ax2 = ax.twinx()
-
-    for i in range(1, len(popular_item_df_list)):
-        ax2.plot(x, popular_item_df_list[i], lw=2, label=label_list[i])
-
+    for i in item_name_list:
+        ax2.plot(x, region_df[i], lw=2, label=i)
     ax2.set_xticks(x[::3])
-    ax2.set_xticklabels(x[::3], rotation=60)
+    ax2.set_xticklabels(x[::3], rotation=45)
     ax2.set_ylabel('Google Trend', fontsize=18, color="Red")
     lines, labels = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
@@ -324,33 +371,65 @@ if __name__ == '__main__':
     
     # Creat US Google Trend data frame
     #TODO: save the good trend data?!
-    keyword_list = ['mask', 'alcohol', 'sanitizer', 'toilet paper', 'disinfectants']
-    GT_US_df = create_google_trend_df(pytrend, keyword_list, "US", "2020-01-01", "2020-04-19")
+
+    # Long-term observation
+    keyword_list = ['disinfectants', 'thermometers', 'oat milk', 'rubbing alcohol', 'powdered milk',
+                    'hydrogen peroxide', 'mask', 'sanitizer', 'toilet paper', 'disposable gloves']
+    GT_US_df = create_google_trend_df(pytrend, keyword_list, "US", "2015-04-19", "2020-04-19")
 
     # Creat Taiwan Google Trend data frame
-    keyword_list = ['口罩', '酒精', '乾洗手', '衛生紙', '消毒']
+    keyword_list = ['消毒', '額溫槍', '燕麥奶', '酒精', '奶粉', '漂白水', '口罩', '乾洗手', '衛生紙', '手套']
+    GT_TW_df = create_google_trend_df(pytrend, keyword_list, "TW", "2015-04-01", "2020-04-19")
+    GT_TW_df.columns = ['date', 'disinfectants', 'thermometers', 'oat milk', 'rubbing alcohol', 'powdered milk',
+                        'hydrogen peroxide', 'mask', 'sanitizer', 'toilet paper', 'disposable gloves']
+
+    plot_google_trend_of_item(GT_US_df, 'US', figure_stage = 'raw')
+    plot_google_trend_of_item(GT_TW_df, 'TW', figure_stage = 'raw')
+
+    impacted_item_US = select_item_impacted_by_covid19(GT_US_df)
+    impacted_item_TW = select_item_impacted_by_covid19(GT_TW_df)
+
+    plot_google_trend_of_item(GT_US_df, 'US', impacted_item_US, 'impact-obs')
+    plot_google_trend_of_item(GT_TW_df, 'TW', impacted_item_TW, 'impact-obs')
+
+    # Short-term observation
+    #TODO: rerun?
+    keyword_list = ['disinfectants', 'thermometers', 'oat milk', 'rubbing alcohol', 'powdered milk',
+                    'hydrogen peroxide', 'mask', 'sanitizer', 'toilet paper', 'disposable gloves']
+    GT_US_df = create_google_trend_df(pytrend, keyword_list, "US", "2020-01-01", "2020-04-19")
+    keyword_list = ['消毒', '額溫槍', '燕麥奶', '酒精', '奶粉', '漂白水', '口罩', '乾洗手', '衛生紙', '手套']
     GT_TW_df = create_google_trend_df(pytrend, keyword_list, "TW", "2020-01-01", "2020-04-19")
-    
+    GT_TW_df.columns = ['date', 'disinfectants', 'thermometers', 'oat milk', 'rubbing alcohol', 'powdered milk',
+                        'hydrogen peroxide', 'mask', 'sanitizer', 'toilet paper', 'disposable gloves']
+
+    representative_item_US = select_representative_kw(GT_US_df, impacted_item_US)
+    representative_item_TW = select_representative_kw(GT_TW_df, impacted_item_TW)
+
+    plot_google_trend_of_item(GT_US_df, 'US', representative_item_US, 'representative-obs')
+    plot_google_trend_of_item(GT_TW_df, 'TW', representative_item_TW, 'representative-obs')
+
+
     # Confirmed data and google trend data combination
-    df_TW['Date'] = pd.to_datetime(df_TW['Date'])
-    df_TW_comb = GT_TW_df.copy()
-    df_TW_comb = pd.merge(df_TW_comb, df_TW, left_on = ['date'], right_on = ['Date'], how = 'left').drop(['Date'], axis = 1)
-    df_TW_comb['Country'] = df_TW_comb['Country'].fillna('Taiwan')
-    df_TW_comb = df_TW_comb.fillna(0)
-    
+    # Use final representative keyword for google trend
+    GT_US_df = pd.concat([GT_US_df['date'], GT_US_df[representative_item_US]], sort=False, axis = 1)
+    GT_TW_df = pd.concat([GT_TW_df['date'], GT_TW_df[representative_item_TW]], sort=False, axis=1)
+
     df_US['Date'] = pd.to_datetime(df_US['Date'])
     df_US_comb = GT_US_df.copy()
     df_US_comb = pd.merge(df_US_comb, df_US, left_on = ['date'], right_on = ['Date'], how = 'left').drop(['Date'], axis = 1)
     df_US_comb['Country'] = df_US_comb['Country'].fillna('US')
     df_US_comb = df_US_comb.fillna(0)
-    
+
+    df_TW['Date'] = pd.to_datetime(df_TW['Date'])
+    df_TW_comb = GT_TW_df.copy()
+    df_TW_comb = pd.merge(df_TW_comb, df_TW, left_on=['date'], right_on=['Date'], how='left').drop(['Date'], axis=1)
+    df_TW_comb['Country'] = df_TW_comb['Country'].fillna('Taiwan')
+    df_TW_comb = df_TW_comb.fillna(0)
+
     # Plot - Confirmed Trend and Google Trend Comparison
     # TW
-    label_list = ['Confirmed Number', 'mask', 'alcohol', 'sanitizer', 'toilet paper', 'disinfectants']
-    tw_item_name_list = ['Confirmed', '口罩', '酒精', '乾洗手', '衛生紙', '消毒']
-    plot_items_with_confirmed_case(df_TW_comb, tw_item_name_list, label_list, "Taiwan")
+    plot_items_with_confirmed_case(df_TW_comb, representative_item_TW, "Taiwan")
 
     # US
-    us_item_name_list = ['Confirmed', 'mask', 'alcohol', 'sanitizer', 'toilet paper', 'disinfectants']
-    plot_items_with_confirmed_case(df_US_comb, us_item_name_list, label_list, "US")
+    plot_items_with_confirmed_case(df_US_comb, representative_item_US, "US")
 
