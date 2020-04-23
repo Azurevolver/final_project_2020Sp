@@ -187,7 +187,62 @@ def fetch_countries_COVID19_data_with_dates(dates: list) -> pd.DataFrame:
 
     return df
 
+
+def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
+                           start_date: str, end_date: str, save_csv: bool = False) -> pd.DataFrame:
+    """
+    Create google trend data frame with list of keywords and region
+    :param keywords: a list contains keywords used to search on google trend
+    :param region: the region
+    :param save_csv:
+    :return: a data frame of keywords search volume in target region
+    >>> pytrend = TrendReq(hl='en-US', tz=360)
+    >>> start_date = "2020-01-20"
+    >>> end_date = "2020-01-31"
+    >>> keyword_list = ['mask', 'sanitizer', 'toilet paper']
+    >>> US_df = create_google_trend_df(pytrend, keyword_list, "US", start_date, end_date)
+    >>> str(US_df.iloc[-1]["date"])
+    '2020-01-31 00:00:00'
+    >>> US_df.iloc[-1]["mask"]
+    98
+    #TODO: Finish test case
+    """
+    if region not in ["TW", "US"]:
+        raise ValueError("Region is not well defined")
+        return
+
+    google_trend_df = None
+    for i in range(len(keywords)):
+        pytrend.build_payload(kw_list=[keywords[i]], cat=0, timeframe=start_date + " " + end_date, geo=region, gprop='')
+        tmp_GT_df = pytrend.interest_over_time()
+        if i == 0:
+            google_trend_df = tmp_GT_df.reset_index().drop(['isPartial'], axis=1)
+        else:
+            google_trend_df[keywords[i]] = tmp_GT_df.reset_index()[keywords[i]]
+
+    if save_csv:
+        google_trend_df.to_csv("GT_" + region + ".csv", index=False)
+
+    return google_trend_df
+
+
 if __name__ == '__main__':
+    """
+    H1:
+    Steps:
+    1) Pick 10 items, which is popular during COVID-19, from Journals and other resources  
+    2) Use Google Trend (related_queries) to find out the "real keyword"
+    3) 宏觀 Find the item which increase because of COVID-19 by examining each popular item in a 5-year trend map
+    4) 微觀 Find representative item by filtering time interval
+    
+    H2:
+    1) Plot to see the trend between COVID-19 and popular items
+    2) Find the time interval between the time of the 1st confirmed case and the time of the max volume of each popular item
+    3) Determine which country has better public awareness about the COVID-19 by comparing the time inteval in different region
+    
+    Alan - H1.2, functions, 
+    Jasmine - H1.3(畫圖) H1.4, H2.2
+    """
     create_data_folder()
 
     start_date = "01-22-2020"
@@ -224,42 +279,28 @@ if __name__ == '__main__':
         label.set_color("red")
     
     fig.savefig('Confirmed_Number_Comparison.png', bbox_inches = "tight")
-    
-    
-    # Google Trend Data
+
+    # Init Google Trend instance
     pytrend = TrendReq(hl='en-US', tz=360)
     
-    # US Google Trend
-    kwList = ['mask', 'alcohol', 'sanitizer', 'toilet paper', 'disinfectants']
-    for i in range(len(kwList)):
-        pytrend.build_payload(kw_list=[kwList[i]], cat=0, timeframe='2020-01-01 2020-04-19', geo='US', gprop='')
-        tmp_GT = pytrend.interest_over_time()
-        if i==0:
-            df_GT_US = tmp_GT.reset_index().drop(['isPartial'], axis = 1)
-        else:
-            df_GT_US[kwList[i]] = tmp_GT.reset_index()[kwList[i]]
-    df_GT_US.to_csv('GT_US.csv', index = False)
-    
-    # Taiwan Google Trend
-    kwList = ['口罩', '酒精', '乾洗手', '衛生紙', '消毒']
-    for i in range(len(kwList)):
-        pytrend.build_payload(kw_list=[kwList[i]], cat=0, timeframe='2020-01-01 2020-04-19', geo='TW', gprop='')
-        tmp_GT = pytrend.interest_over_time()
-        if i==0:
-            df_GT_TW = tmp_GT.reset_index().drop(['isPartial'], axis = 1)
-        else:
-            df_GT_TW[kwList[i]] = tmp_GT.reset_index()[kwList[i]]
-    df_GT_TW.to_csv('GT_TW.csv', index = False)
+    # Creat US Google Trend data frame
+    #TODO: save the good trend data?!
+    keyword_list = ['mask', 'alcohol', 'sanitizer', 'toilet paper', 'disinfectants']
+    GT_US_df = create_google_trend_df(pytrend, keyword_list, "US", "2020-01-01", "2020-04-19")
+
+    # Creat Taiwan Google Trend data frame
+    keyword_list = ['口罩', '酒精', '乾洗手', '衛生紙', '消毒']
+    GT_TW_df = create_google_trend_df(pytrend, keyword_list, "TW", "2020-01-01", "2020-04-19")
     
     # Confirmed data and google trend data combination
     df_TW['Date'] = pd.to_datetime(df_TW['Date'])
-    df_TW_comb = df_GT_TW.copy()
+    df_TW_comb = GT_TW_df.copy()
     df_TW_comb = pd.merge(df_TW_comb, df_TW, left_on = ['date'], right_on = ['Date'], how = 'left').drop(['Date'], axis = 1)
     df_TW_comb['Country'] = df_TW_comb['Country'].fillna('Taiwan')
     df_TW_comb = df_TW_comb.fillna(0)
     
     df_US['Date'] = pd.to_datetime(df_US['Date'])
-    df_US_comb = df_GT_US.copy()
+    df_US_comb = GT_US_df.copy()
     df_US_comb = pd.merge(df_US_comb, df_US, left_on = ['date'], right_on = ['Date'], how = 'left').drop(['Date'], axis = 1)
     df_US_comb['Country'] = df_US_comb['Country'].fillna('US')
     df_US_comb = df_US_comb.fillna(0)
