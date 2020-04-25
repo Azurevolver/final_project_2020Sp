@@ -159,16 +159,36 @@ def create_data_folder(sub_directory: str):
         print("Successfully created the directory")
 
 
-def get_dependent_df_by_country(origin_df: pd.DataFrame, country: str = "") -> pd.DataFrame:
+def get_country_df(origin_df: pd.DataFrame, country: str = "") -> pd.DataFrame:
     """
     Access the specific COVID-19 data in the target country
     :param origin_df: origin data frame has specific date range and multiple conutries
     :param country: the target country string
     :return: a pandas dataframe of COVID-19 data in the country
-    #TODO: Test cases
+    >>> start_date = "01-22-2020"
+    >>> end_date_str = "01-24-2020"
+    >>> end_date = datetime.datetime.strptime(end_date_str, Constant.DATE_FORMAT)
+    >>> date_list = generate_date_list(start_date, end_date)
+    >>> origin_df = fetch_countries_COVID19_data_with_dates(date_list)
+    >>> origin_df.loc[origin_df['Country'] != Constant.US, 'Country'] = Constant.TAIWAN
+    >>> empty_country_df = get_country_df(origin_df, "Some Country")
+    Traceback (most recent call last):
+    ValueError: No such country
+    >>> start_date = "01-22-2020"
+    >>> end_date_str = "01-24-2020"
+    >>> end_date = datetime.datetime.strptime(end_date_str, Constant.DATE_FORMAT)
+    >>> date_list = generate_date_list(start_date, end_date)
+    >>> origin_df = fetch_countries_COVID19_data_with_dates(date_list)
+    >>> origin_df.loc[origin_df['Country'] != Constant.US, 'Country'] = Constant.TAIWAN
+    >>> tw_df = get_country_df(origin_df, Constant.TAIWAN)
+    >>> tw_df.iloc[0]["Confirmed"]
+    1.0
     """
-    if country not in ["Taiwan", "US"] or country == "" or country is None:
+    if country not in [Constant.TAIWAN, Constant.US] or country == "" or country is None:
         raise ValueError("No such country")
+
+    if origin_df is None:
+        raise ValueError("Origin data frame is not existed")
 
     return origin_df[origin_df['Country'] == country].copy()
 
@@ -360,8 +380,8 @@ if __name__ == '__main__':
     df.to_csv('confirmedData.csv', index=False)
 
     # Get independent data frame
-    df_TW = get_dependent_df_by_country(df, "Taiwan")
-    df_US = get_dependent_df_by_country(df, "US")
+    df_TW = get_country_df(df, Constant.TAIWAN)
+    df_US = get_country_df(df, Constant.US)
     
     # Plot - Taiwan & US Confirmed Number Comparison
     x1 = df_TW['Date']
