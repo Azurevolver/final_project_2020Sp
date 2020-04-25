@@ -184,6 +184,9 @@ def get_country_df(origin_df: pd.DataFrame, country: str = "") -> pd.DataFrame:
     >>> tw_df.iloc[0]["Confirmed"]
     1.0
     """
+    if country == Constant.TW:
+        country = Constant.TAIWAN
+
     if country not in [Constant.TAIWAN, Constant.US] or country == "" or country is None:
         raise ValueError("No such country")
 
@@ -281,7 +284,7 @@ def plot_google_trend_of_item(df: pd.DataFrame, region: str, figure_stage='', se
     :return:
     """
     fig, ax = plt.subplots(nrows=5, ncols=2, figsize=(12, 10))
-    x = pd.to_datetime(df['date']).dt.date
+    x = df['date'] #pd.to_datetime(df['date']).dt.date
 
     for i in range(df.shape[1] - 1):
         if df.columns[i + 1] in select:
@@ -318,8 +321,8 @@ def select_item_impacted_by_covid19(df: pd.DataFrame) -> list:
 
 def select_representative_kw(df: pd.DataFrame, impacted_item: list):
     """
-    - Select the representative items which has sharp increase due to COVID-19.
-    The select criteria is
+    Select the representative items which has sharp increase due to COVID-19.
+    The selection criteria:
     1. low max value of the trend 2 weeks before the peak
     2. high max value of the trend during COVID-19
     - Create a dictionary for record of items' max value date
@@ -333,9 +336,10 @@ def select_representative_kw(df: pd.DataFrame, impacted_item: list):
     for item in df.columns[1:]:
         max_idx = df[item].idxmax()
         max_date_dict[item] = df['date'][max_idx]
+        # TODO: Explain why 14 days note: US有filter掉大陸人搜尋mask
         date_bound = df['date'][max_idx] - datetime.timedelta(days=14)
-        past_max = df[df['date'].dt.date < date_bound][item].max()
-        current_max = df[df['date'].dt.date > date_bound][item].max()
+        past_max = df[df['date'] < date_bound][item].max()
+        current_max = df[df['date'] > date_bound][item].max()
         if past_max < 30 and current_max > 90:
             kw_list.append(item)
     return kw_list, max_date_dict
@@ -370,8 +374,7 @@ def plot_items_with_confirmed_case(region_df: pd.DataFrame, item_name_list: list
     :param region_df: combination dataframe of items google trend and confirmed number
     :param item_name_list: representative keywords list
     :param region: region of plot
-    :return:
-    TODO: Test case
+    :return: None
     """
     x = region_df['date'].dt.date
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -441,6 +444,13 @@ def plot_confirmed_number_and_awareness_comparison(region1_df: pd.DataFrame, reg
     fig.savefig('Confirmed_Number_Comparison.png', bbox_inches="tight")
 
 
+def convert_GT_col_name(data_manager: {}, country: str):
+    gt_df = data_manager[country]["GT_DF"]
+    col_names = Constant.KEY_WORDS_LIST_EN.copy()
+    col_names.insert(0, 'date')
+    gt_df.columns = col_names
+
+
 if __name__ == '__main__':
     """
     H1:
@@ -461,66 +471,88 @@ if __name__ == '__main__':
     df = fetch_countries_COVID19_data_with_dates(date_list)
 
     # Get country's COVID-19 data frame
-    df_TW = get_country_df(df, Constant.TAIWAN)
-    df_US = get_country_df(df, Constant.US)
+    select_countries = [Constant.TW, Constant.US]
 
-    # Create long-term(5 years) google trend for observation
+    """
+    data_manager:{
+        'TW': {'COVID_19_raw_data': COVID_df, 'GT_DF': GT_DF},
+        'US': {'COVID_19_raw_data': COVID_df, 'GT_DF': GT_DF}
+    }
+    """
+    data_manager = {}
+
+    # ------------------------------------------------------------------------------------------------------
+    # Store each country's COVID-19 data
+    for country in select_countries:
+        country_raw_df = get_country_df(df, country)
+        data_manager[country] = {}
+        data_manager[country]["COVID_19_raw_data"] = country_raw_df
+
+    # ------------------------------------------------------------------------------------------------------
+    # Plot the long-term(5 years) google trend of each item for observing the search trend.
     create_data_folder(Constant.GT_5_YR_DATA_DIR)
     pytrend = TrendReq(hl='en-US', tz=360)
-
-    # Create US Google Trend data frame with key word list
-    GT_US_df = create_google_trend_df(pytrend, Constant.KEY_WORDS_LIST_EN, Constant.US, "2015-04-19", "2020-04-19", True)
-
-    # Create Taiwan Google Trend data frame with key word list
-    GT_TW_df = create_google_trend_df(pytrend, Constant.KEY_WORDS_LIST_TW, Constant.TW, "2015-04-19", "2020-04-19", True)
-    tw_col_names = Constant.KEY_WORDS_LIST_EN.copy()
-    tw_col_names.insert(0, 'date')
-    GT_TW_df.columns = tw_col_names
-
-    # Plot the long-term(5 years) google trend of each item for observing the search trend.
+    gt_start_date = "2015-04-19"
+    gt_end_date = "2020-04-19"
     create_data_folder(Constant.GT_FIGURE_DIR)
-    plot_google_trend_of_item(GT_US_df, Constant.US, '5_years')
-    plot_google_trend_of_item(GT_TW_df, Constant.TW, '5_years')
 
+    for country in select_countries:
+        keywords_list = []
+        if country == Constant.US:
+            keywords_list = Constant.KEY_WORDS_LIST_EN
+        elif country == Constant.TW:
+            keywords_list = Constant.KEY_WORDS_LIST_TW
+
+        # Create long-term(5 years) google trend for observation
+        gt_country_raw_df = create_google_trend_df(pytrend, keywords_list, country, gt_start_date, gt_end_date, True)
+        data_manager[country]["GT_DF"] = gt_country_raw_df
+
+        if country == Constant.TW:
+            convert_GT_col_name(data_manager, country)
+
+        # Plot the long-term(5 years) google trend of each item for observing the search trend.
+        plot_google_trend_of_item(data_manager[country]["GT_DF"], country, Constant.GT_FIGURE_5_YR)
+
+    # ------------------------------------------------------------------------------------------------------
     # Select the items that impacted by COVID-19.
     #  We assume that all items would have very low search volume before COVID-19
     #  , but reach high search volume during the COVID-19 outbreak.
     # The selection criteria:
     # 1. high skew of the trend (extreme left skew)
     # 2. low max value of the search volume before COVID-19
-    impacted_item_US = select_item_impacted_by_covid19(GT_US_df)
-    impacted_item_TW = select_item_impacted_by_covid19(GT_TW_df)
+    for country in select_countries:
+        GT_df = data_manager[country]["GT_DF"]
+        impacted_keyword_list = select_item_impacted_by_covid19(GT_df)
+        data_manager[country]["impacted_keyword_list"] = impacted_keyword_list
+        # Plot the long-term(5 years) google trend of the items which is highly impacted by COVID-19 (in red)
+        plot_google_trend_of_item(GT_df, country, Constant.GT_FIGURE_5_YR_SIGNIFICANT, impacted_keyword_list)
 
-    # Plot the long-term(5 years) google trend of the items which is highly impacted by COVID-19 (in red)
-    plot_google_trend_of_item(GT_US_df, Constant.US, '5_years_significant', impacted_item_US)
-    plot_google_trend_of_item(GT_TW_df, Constant.TW, '5_years_significant', impacted_item_TW)
+    # ------------------------------------------------------------------------------------------------------
+    # Short-term google trend observation(this year)
+    gt_start_date = "2020-01-01"
+
+    for country in select_countries:
+        # Creat Google Trend data frame for each country
+        GT_df = create_google_trend_df(pytrend, Constant.KEY_WORDS_LIST_EN, Constant.US, gt_start_date, gt_end_date)
+
+        if country == Constant.TW:
+            convert_GT_col_name(data_manager, country)
+
+        # TODO: Paraphrase this section and explain why 14 days in the select_representative_kw()
+        # From the long-term keyword selection, we then further select the representative items which has sharp increase
+        # google trend during COVID-19 by observing short-term(this year) trend.
+        # The selection criteria:
+        # 1. low max value of the trend 2 weeks before the peak
+        # 2. high max value of the trend during COVID-19
+        impacted_keyword_list = data_manager[country]["impacted_keyword_list"]
+        country_GT_df = data_manager[country]["GT_DF"]
+        representative_items, items_max_date_US = select_representative_kw(country_GT_df, impacted_keyword_list)
+
+        # Plot the short-term(this year) google trend of each item for observing the search trend and make the selected
+        # representative items drew by red line.
+        plot_google_trend_of_item(country_GT_df, country, 'representative', representative_items)
 
     """
-    # Short-term google trend observation(this year)
-    # Creat US Google Trend data frame
-    keyword_list = ['disinfectants', 'thermometers', 'oat milk', 'rubbing alcohol', 'powdered milk',
-                    'hydrogen peroxide', 'mask', 'sanitizer', 'toilet paper', 'disposable gloves']
-    GT_US_df = create_google_trend_df(pytrend, keyword_list, "US", "2020-01-01", "2020-04-19")
-
-    # Creat Taiwan Google Trend data frame
-    keyword_list = ['消毒', '額溫槍', '燕麥奶', '酒精', '奶粉', '漂白水', '口罩', '乾洗手', '衛生紙', '手套']
-    GT_TW_df = create_google_trend_df(pytrend, keyword_list, "TW", "2020-01-01", "2020-04-19")
-    GT_TW_df.columns = ['date', 'disinfectants', 'thermometers', 'oat milk', 'rubbing alcohol', 'powdered milk',
-                        'hydrogen peroxide', 'mask', 'sanitizer', 'toilet paper', 'disposable gloves']
-
-    # From the long-term keyword selection, we then further select the representative items which has sharp increase
-    # google trend during COVID-19 by observing short-term(this year) trend.
-    # The select criteria is
-    # 1. low max value of the trend 2 weeks before the peak
-    # 2. high max value of the trend during COVID-19
-    representative_item_US, items_max_date_US = select_representative_kw(GT_US_df, impacted_item_US)
-    representative_item_TW, items_max_date_TW = select_representative_kw(GT_TW_df, impacted_item_TW)
-
-    # Plot the short-term(this year) google trend of each item for observing the search trend and make the selected
-    # representative items drew by red line.
-    plot_google_trend_of_item(GT_US_df, 'US', representative_item_US, 'representative-obs')
-    plot_google_trend_of_item(GT_TW_df, 'TW', representative_item_TW, 'representative-obs')
-
     # Combind confirmed data and google trend data
     # Use final representative keywords for google trend
     GT_US_df = pd.concat([GT_US_df['date'], GT_US_df[representative_item_US]], sort=False, axis=1)
