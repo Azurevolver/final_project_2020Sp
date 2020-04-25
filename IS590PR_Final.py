@@ -127,14 +127,28 @@ def get_CODIV19_data_from_remote(url: str, date: str) -> pd.DataFrame:
     return single_date_df
 
 
-def create_data_folder():
+def create_data_folder(sub_directory: str):
+    """
+    Create new folder
+    :param sub_directory: the folder name
+    :return: None
+    >>> test_directory = "/test"
+    >>> create_data_folder(test_directory)
+    Successfully created the directory
+    >>> test_directory = "/test"
+    >>> create_data_folder(test_directory)
+    Data folder existed
+    >>> empty_dir = ""
+    >>> create_data_folder(empty_dir)
+    Data folder existed
+    """
     path = os.getcwd()
     # print("[DEBUG] The current working directory is %s" % path)
 
     # check whether current path has data folder
-    path += "/data"
+    path += sub_directory
     if os.path.exists(path):
-        # print("[DEBUG] data folder existed")
+        print("Data folder existed")
         return
 
     try:
@@ -142,7 +156,7 @@ def create_data_folder():
     except OSError:
         print("Creation of the directory %s failed" % path)
     else:
-        print("Successfully created the directory %s " % path)
+        print("Successfully created the directory")
 
 
 def get_dependent_df_by_country(origin_df: pd.DataFrame, country: str = "") -> pd.DataFrame:
@@ -226,14 +240,17 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
 
     return google_trend_df
 
+
 def plot_google_trend_of_item(df: pd.DataFrame, region: str, select = [], figure_stage = ''):
     """
     Plot the google trend of each item
     :param df:
     :param region:
     :param select:
+    :param figure_stage:
     :return:
     """
+
     fig, ax = plt.subplots(nrows=5, ncols=2, figsize=(12, 10))
     x = df['date'].dt.date
     for i in range(df.shape[1]-1):
@@ -247,6 +264,7 @@ def plot_google_trend_of_item(df: pd.DataFrame, region: str, select = [], figure
     fig.autofmt_xdate()
     fig.tight_layout()
     fig.savefig('GoogleTrend_' + region + '_' + figure_stage + '.png', bbox_inches="tight")
+
 
 def select_item_impacted_by_covid19(df: pd.DataFrame) -> list:
     """
@@ -262,6 +280,7 @@ def select_item_impacted_by_covid19(df: pd.DataFrame) -> list:
         if skew>4 and past_max<50:
             kw_list.append(item)
     return kw_list
+
 
 def select_representative_kw(df: pd.DataFrame, impacted_item: list) -> list:
     """
@@ -280,6 +299,7 @@ def select_representative_kw(df: pd.DataFrame, impacted_item: list) -> list:
         if past_max<30 and current_max>90:
             kw_list.append(item)
     return kw_list
+
 
 def plot_items_with_confirmed_case(region_df: pd.DataFrame, item_name_list: list, region: str):
     """
@@ -329,7 +349,7 @@ if __name__ == '__main__':
     Alan - H1.2, functions, 
     Jasmine - H1.3(畫圖) H1.4, H2.2
     """
-    create_data_folder()
+    create_data_folder("/data")
 
     start_date = "01-22-2020"
     date_list = generate_date_list(start_date)
@@ -389,6 +409,7 @@ if __name__ == '__main__':
     impacted_item_US = select_item_impacted_by_covid19(GT_US_df)
     impacted_item_TW = select_item_impacted_by_covid19(GT_TW_df)
 
+    # 受影響的產品
     plot_google_trend_of_item(GT_US_df, 'US', impacted_item_US, 'impact-obs')
     plot_google_trend_of_item(GT_TW_df, 'TW', impacted_item_TW, 'impact-obs')
 
@@ -407,7 +428,6 @@ if __name__ == '__main__':
 
     plot_google_trend_of_item(GT_US_df, 'US', representative_item_US, 'representative-obs')
     plot_google_trend_of_item(GT_TW_df, 'TW', representative_item_TW, 'representative-obs')
-
 
     # Confirmed data and google trend data combination
     # Use final representative keyword for google trend
