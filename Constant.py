@@ -1,4 +1,5 @@
 DATE_FORMAT = "%m-%d-%Y"
+PLOT_DATE_FORMAT = "%Y-%m-%d"
 DATA_URL = "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/"
 DATA_POSTFIX_CSV = ".csv"
 COUNTRY_REGION = "Country/Region"
@@ -10,9 +11,11 @@ US = "US"
 COVID_RAW_DATA_DIR = "/COVID_RAW_DATA"
 GT_5_YR_DATA_DIR = "/GT_5-YR_DATA"
 GT_FIGURE_DIR = "/GT_FIGURE"
+GT_RECENT_DATA_DIR = "/GT_RECENT_DATA"
 GT_FIGURE_NAME_PREFIX = "/GT_FIGURE/GoogleTrend_"
 GT_FIGURE_5_YR = "5_yrs"
 GT_FIGURE_5_YR_SIGNIFICANT = "5_yrs_significant"
+GT_FIGURE_WITH_COMFIRMED_CASE = 'with_ConfirmedCases'
 
 # Keyword List
 KEY_WORDS_LIST_EN = ['disinfectants', 'thermometers', 'oat milk', 'rubbing alcohol', 'powdered milk',
