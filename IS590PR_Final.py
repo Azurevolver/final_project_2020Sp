@@ -14,7 +14,7 @@ import doctest
 import os
 
 
-def generate_date_list(start_date_str: str, end_date: datetime.date = datetime.datetime.today()) -> list:
+def generate_date_list(start_date_str: str, end_date: datetime.date = datetime.datetime.strptime("04-22-2020", Constant.DATE_FORMAT)) -> list:
     """
     Create a list of date
     :param start_date_str: date string in %m-%d-%Y format
@@ -103,7 +103,7 @@ def get_CODIV19_data_from_remote(url: str, date: str) -> pd.DataFrame:
         raise ValueError("Empty date")
         return
 
-    file_path = os.getcwd() + "/data/" + date + Constant.DATA_POSTFIX_CSV
+    file_path = os.getcwd() + Constant.COVID_RAW_DATA_DIR + "/" + date + Constant.DATA_POSTFIX_CSV
     single_date_df = None
     if os.path.exists(file_path) is False:
         try:
@@ -118,7 +118,6 @@ def get_CODIV19_data_from_remote(url: str, date: str) -> pd.DataFrame:
         single_date_df.to_csv(file_path, header=True, index=False)
     else:
         single_date_df = pd.read_csv(file_path)
-        # print("[DEBUG] " + date + "data file exist")
 
     single_date_df.columns = ['Country', 'Confirmed', 'Deaths', 'Recovered']
     single_date_df = single_date_df[single_date_df['Country'].isin(['US', 'Taiwan', 'Taiwan*', 'Taipei and environs'])]
@@ -220,19 +219,21 @@ def fetch_countries_COVID19_data_with_dates(dates: list) -> pd.DataFrame:
         date_info = get_CODIV19_data_from_remote(request_url, date)
         df = pd.concat([df, date_info], sort=False)
 
+    df.loc[df['Country'] != 'US', 'Country'] = 'Taiwan'
     return df
 
 
 def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
                            start_date: str, end_date: str, save_csv: bool = False) -> pd.DataFrame:
     """
-    Create google trend data frame with list of keywords and region
+    Create google trend data frame with list of keywords, region, start date, and end date
+    :param pytrend:
     :param keywords: a list contains keywords used to search on google trend
-    :param region: the region
-    :param save_csv:
-    :return: a data frame of keywords search volume in target region
-    #TODO: Finish test case
-
+    :param region: the region for search
+    :param start_date: the start date for search
+    :param end_date: the end date for search
+    :param save_csv: a boolean value for saving the file to local directory
+    :return: a pandas data frame of google trend data
     >>> pytrend = TrendReq(hl='en-US', tz=360)
     >>> start_date = "2020-01-20"
     >>> end_date = "2020-01-31"
@@ -243,11 +244,18 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
     >>> US_df.iloc[-1]["mask"]
     96
     """
+    google_trend_df = None
+
     if region not in ["TW", "US"]:
         raise ValueError("Region is not well defined")
-        return
+        return None
 
-    google_trend_df = None
+    file_path = os.getcwd() + Constant.GT_5_YR_DATA_DIR + "/GT_" + region + Constant.DATA_POSTFIX_CSV
+    if os.path.exists(file_path):
+        # print("[DEBUG] create_google_trend_df() => file exist")
+        google_trend_df = pd.read_csv(file_path)
+        return google_trend_df
+
     for i in range(len(keywords)):
         pytrend.build_payload(kw_list=[keywords[i]], cat=0, timeframe=start_date + " " + end_date, geo=region, gprop='')
         tmp_GT_df = pytrend.interest_over_time()
@@ -256,23 +264,26 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
         else:
             google_trend_df[keywords[i]] = tmp_GT_df.reset_index()[keywords[i]]
 
-    if save_csv:
-        google_trend_df.to_csv("GT_" + region + ".csv", index=False)
+    if save_csv and os.path.exists(file_path) is False:
+        print("save file")
+        google_trend_df.to_csv(file_path, header=True, index=False)
 
     return google_trend_df
 
 
-def plot_google_trend_of_item(df: pd.DataFrame, region: str, select=[], figure_stage=''):
+def plot_google_trend_of_item(df: pd.DataFrame, region: str, figure_stage='', select=[]):
     """
     Plot the google trend of each item. Item in the select list will be drew by red line. figure_stage is for figure
     saving name.
-    :param df: google trend dataframe of the items
+    :param df: google trend data frame
     :param region: region of plot
+    :param figure_stage:
     :param select: list of items that are selected and will be drew by red line.
     :return:
     """
     fig, ax = plt.subplots(nrows=5, ncols=2, figsize=(12, 10))
-    x = df['date'].dt.date
+    x = pd.to_datetime(df['date']).dt.date
+
     for i in range(df.shape[1] - 1):
         if df.columns[i + 1] in select:
             ax[i % 5, int(i / 5)].plot(x, df[df.columns[i + 1]], color='red')
@@ -283,7 +294,9 @@ def plot_google_trend_of_item(df: pd.DataFrame, region: str, select=[], figure_s
         ax[i % 5, int(i / 5)].set_ylabel('Google Trend', fontsize=12)
     fig.autofmt_xdate()
     fig.tight_layout()
-    fig.savefig('GoogleTrend_' + region + '_' + figure_stage + '.png', bbox_inches="tight")
+
+    file_path = os.getcwd() + Constant.GT_FIGURE_NAME_PREFIX + region + '_' + figure_stage + '.png'
+    fig.savefig(file_path, bbox_inches="tight")
 
 
 def select_item_impacted_by_covid19(df: pd.DataFrame) -> list:
@@ -435,26 +448,21 @@ if __name__ == '__main__':
     Steps:
     1) Pick 10 items, which is popular during COVID-19, from Journals and other resources  
     2) Use Google Trend (related_queries) to find out the "real keyword"
-    3) 宏觀 Find the item which increase because of COVID-19 by examining each popular item in a 5-year trend map
+    3) 宏觀 Find the item which increase because of COVID-19 by examining each popular item in a 5-year trend
     4) 微觀 Find representative item by filtering time interval
     
     H2:
     1) Plot to see the trend between COVID-19 and popular items
     2) Find the time interval between the time of the 1st confirmed case and the time of the max volume of each popular item
     3) Determine which country has better public awareness about the COVID-19 by comparing the time inteval in different region
-    
-    Alan - H1.2, functions, 
-    Jasmine - H1.3(畫圖) H1.4, H2.2
     """
-    create_data_folder("/data")
+    create_data_folder(Constant.COVID_RAW_DATA_DIR)
 
-    start_date = "01-22-2020"
-    date_list = generate_date_list(start_date)
+    date_list = generate_date_list("01-22-2020")
 
     df = fetch_countries_COVID19_data_with_dates(date_list)
 
-    df.loc[df['Country'] != 'US', 'Country'] = 'Taiwan'
-    df.to_csv('confirmedData.csv', index=False)
+    # df.to_csv('confirmedData.csv', index=False)
 
     # Get independent data frame
     df_TW = get_country_df(df, Constant.TAIWAN)
@@ -463,24 +471,22 @@ if __name__ == '__main__':
     # Init Google Trend instance
     pytrend = TrendReq(hl='en-US', tz=360)
 
-    # Creat US Google Trend data frame
-    #TODO: save the good trend data?!
+    # Create long-term(5 years) google trend for observation
+    create_data_folder(Constant.GT_5_YR_DATA_DIR)
 
-    # Long-term google trend observation (5 years)
-    # Creat US Google Trend data frame
-    keyword_list = ['disinfectants', 'thermometers', 'oat milk', 'rubbing alcohol', 'powdered milk',
-                    'hydrogen peroxide', 'mask', 'sanitizer', 'toilet paper', 'disposable gloves']
-    GT_US_df = create_google_trend_df(pytrend, keyword_list, "US", "2015-04-19", "2020-04-19")
+    # Create US Google Trend data frame
+    GT_US_df = create_google_trend_df(pytrend, Constant.KEY_WORDS_LIST_EN, Constant.US, "2015-04-19", "2020-04-19", True)
 
-    # Creat Taiwan Google Trend data frame
-    keyword_list = ['消毒', '額溫槍', '燕麥奶', '酒精', '奶粉', '漂白水', '口罩', '乾洗手', '衛生紙', '手套']
-    GT_TW_df = create_google_trend_df(pytrend, keyword_list, "TW", "2015-04-01", "2020-04-19")
-    GT_TW_df.columns = ['date', 'disinfectants', 'thermometers', 'oat milk', 'rubbing alcohol', 'powdered milk',
-                        'hydrogen peroxide', 'mask', 'sanitizer', 'toilet paper', 'disposable gloves']
+    # Create Taiwan Google Trend data frame
+    GT_TW_df = create_google_trend_df(pytrend, Constant.KEY_WORDS_LIST_TW, Constant.TW, "2015-04-01", "2020-04-19", True)
+    tw_col_names = Constant.KEY_WORDS_LIST_EN.copy()
+    tw_col_names.insert(0, 'date')
+    GT_TW_df.columns = tw_col_names
 
     # Plot the long-term(5 years) google trend of each item for observing the search trend.
-    plot_google_trend_of_item(GT_US_df, 'US', figure_stage='raw')
-    plot_google_trend_of_item(GT_TW_df, 'TW', figure_stage='raw')
+    create_data_folder(Constant.GT_FIGURE_DIR)
+    plot_google_trend_of_item(GT_US_df, Constant.US, '5_years')
+    plot_google_trend_of_item(GT_TW_df, Constant.TW, '5_years')
 
     # Select the items that impacted by COVID-19. We suppose that these kind of items would have very low search volume
     # before COVID-19 but very high search volume during the COVID-19.
@@ -492,8 +498,8 @@ if __name__ == '__main__':
 
     # Plot the long-term(5 years) google trend of each item for observing the search trend and make the selected items
     # drew by red line.
-    plot_google_trend_of_item(GT_US_df, 'US', impacted_item_US, 'impact-obs')
-    plot_google_trend_of_item(GT_TW_df, 'TW', impacted_item_TW, 'impact-obs')
+    plot_google_trend_of_item(GT_US_df, Constant.US, 'impact-obs', impacted_item_US)
+    plot_google_trend_of_item(GT_TW_df, Constant.TW, 'impact-obs', impacted_item_TW)
 
     # Short-term google trend observation(this year)
     # Creat US Google Trend data frame
