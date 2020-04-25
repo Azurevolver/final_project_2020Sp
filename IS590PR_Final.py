@@ -252,8 +252,8 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
 
     file_path = os.getcwd() + Constant.GT_5_YR_DATA_DIR + "/GT_" + region + Constant.DATA_POSTFIX_CSV
     if os.path.exists(file_path):
-        # print("[DEBUG] create_google_trend_df() => file exist")
         google_trend_df = pd.read_csv(file_path)
+        google_trend_df['date'] = pd.to_datetime(google_trend_df['date']).dt.date
         return google_trend_df
 
     for i in range(len(keywords)):
@@ -265,7 +265,6 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
             google_trend_df[keywords[i]] = tmp_GT_df.reset_index()[keywords[i]]
 
     if save_csv and os.path.exists(file_path) is False:
-        print("save file")
         google_trend_df.to_csv(file_path, header=True, index=False)
 
     return google_trend_df
@@ -301,8 +300,8 @@ def plot_google_trend_of_item(df: pd.DataFrame, region: str, figure_stage='', se
 
 def select_item_impacted_by_covid19(df: pd.DataFrame) -> list:
     """
-    Select the items impacted by COVID-19 by long-term observation.
-    The select criteria is
+    Select the items impacted by COVID-19 in long-term observation.
+    The selection criteria:
     1. high skew of the trend (extreme left skew)
     2. low max value of the search volume before COVID-19
     :param df: google trend dataframe of the items
@@ -311,7 +310,7 @@ def select_item_impacted_by_covid19(df: pd.DataFrame) -> list:
     kw_list = []
     for item in df.columns[1:]:
         skew = df[item].skew()
-        past_max = df[df['date'].dt.date < datetime.date(2020, 1, 1)][item].max()
+        past_max = df[df['date'] < datetime.date(2020, 1, 1)][item].max()
         if skew > 4 and past_max < 50:
             kw_list.append(item)
     return kw_list
@@ -456,29 +455,24 @@ if __name__ == '__main__':
     2) Find the time interval between the time of the 1st confirmed case and the time of the max volume of each popular item
     3) Determine which country has better public awareness about the COVID-19 by comparing the time inteval in different region
     """
+    # Create COVID-19 data frame from start date to end date (default is 04-22-2020)
     create_data_folder(Constant.COVID_RAW_DATA_DIR)
-
     date_list = generate_date_list("01-22-2020")
-
     df = fetch_countries_COVID19_data_with_dates(date_list)
 
-    # df.to_csv('confirmedData.csv', index=False)
-
-    # Get independent data frame
+    # Get country's COVID-19 data frame
     df_TW = get_country_df(df, Constant.TAIWAN)
     df_US = get_country_df(df, Constant.US)
 
-    # Init Google Trend instance
-    pytrend = TrendReq(hl='en-US', tz=360)
-
     # Create long-term(5 years) google trend for observation
     create_data_folder(Constant.GT_5_YR_DATA_DIR)
+    pytrend = TrendReq(hl='en-US', tz=360)
 
-    # Create US Google Trend data frame
+    # Create US Google Trend data frame with key word list
     GT_US_df = create_google_trend_df(pytrend, Constant.KEY_WORDS_LIST_EN, Constant.US, "2015-04-19", "2020-04-19", True)
 
-    # Create Taiwan Google Trend data frame
-    GT_TW_df = create_google_trend_df(pytrend, Constant.KEY_WORDS_LIST_TW, Constant.TW, "2015-04-01", "2020-04-19", True)
+    # Create Taiwan Google Trend data frame with key word list
+    GT_TW_df = create_google_trend_df(pytrend, Constant.KEY_WORDS_LIST_TW, Constant.TW, "2015-04-19", "2020-04-19", True)
     tw_col_names = Constant.KEY_WORDS_LIST_EN.copy()
     tw_col_names.insert(0, 'date')
     GT_TW_df.columns = tw_col_names
@@ -488,19 +482,20 @@ if __name__ == '__main__':
     plot_google_trend_of_item(GT_US_df, Constant.US, '5_years')
     plot_google_trend_of_item(GT_TW_df, Constant.TW, '5_years')
 
-    # Select the items that impacted by COVID-19. We suppose that these kind of items would have very low search volume
-    # before COVID-19 but very high search volume during the COVID-19.
-    # The select criteria is
+    # Select the items that impacted by COVID-19.
+    #  We assume that all items would have very low search volume before COVID-19
+    #  , but reach high search volume during the COVID-19 outbreak.
+    # The selection criteria:
     # 1. high skew of the trend (extreme left skew)
     # 2. low max value of the search volume before COVID-19
     impacted_item_US = select_item_impacted_by_covid19(GT_US_df)
     impacted_item_TW = select_item_impacted_by_covid19(GT_TW_df)
 
-    # Plot the long-term(5 years) google trend of each item for observing the search trend and make the selected items
-    # drew by red line.
-    plot_google_trend_of_item(GT_US_df, Constant.US, 'impact-obs', impacted_item_US)
-    plot_google_trend_of_item(GT_TW_df, Constant.TW, 'impact-obs', impacted_item_TW)
+    # Plot the long-term(5 years) google trend of the items which is highly impacted by COVID-19 (in red)
+    plot_google_trend_of_item(GT_US_df, Constant.US, '5_years_significant', impacted_item_US)
+    plot_google_trend_of_item(GT_TW_df, Constant.TW, '5_years_significant', impacted_item_TW)
 
+    """
     # Short-term google trend observation(this year)
     # Creat US Google Trend data frame
     keyword_list = ['disinfectants', 'thermometers', 'oat milk', 'rubbing alcohol', 'powdered milk',
@@ -561,3 +556,4 @@ if __name__ == '__main__':
     # Plot confirmed number trend and time gap between first confirmed date and awareness date for two countries.
     plot_confirmed_number_and_awareness_comparison(df_US_comb, 'US', awareness_report_US, df_TW_comb, 'TW',
                                                    awareness_report_TW)
+"""
