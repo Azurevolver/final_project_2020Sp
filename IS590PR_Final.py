@@ -148,7 +148,7 @@ def create_data_folder(sub_directory: str):
     # check whether current path has data folder
     path += sub_directory
     if os.path.exists(path):
-        print("Data folder existed")
+        print(sub_directory + "Data folder existed")
         return
 
     try:
@@ -193,6 +193,7 @@ def get_country_df(origin_df: pd.DataFrame, country: str = "") -> pd.DataFrame:
     if origin_df is None:
         raise ValueError("Origin data frame is not existed")
 
+    origin_df["Date"] = pd.to_datetime(origin_df["Date"])
     return origin_df[origin_df['Country'] == country].copy()
 
 
@@ -270,7 +271,7 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
 
     if os.path.exists(file_path):
         google_trend_df = pd.read_csv(file_path)
-        google_trend_df['date'] = pd.to_datetime(google_trend_df['date']).dt.date
+        google_trend_df['date'] = pd.to_datetime(google_trend_df['date'])
         return google_trend_df
 
     for i in range(len(keywords)):
@@ -285,7 +286,7 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
     col_names = Constant.KEY_WORDS_LIST_EN.copy()
     col_names.insert(0, 'date')
     google_trend_df.columns = col_names
-    google_trend_df['date'] = pd.to_datetime(google_trend_df['date']).dt.date
+    google_trend_df['date'] = pd.to_datetime(google_trend_df['date'])
 
     if save_csv and os.path.exists(file_path) is False:
         google_trend_df.to_csv(file_path, header=True, index=False)
@@ -314,9 +315,9 @@ def plot_google_trend_of_item(df: pd.DataFrame, region: str, figure_stage='', se
         ax[i % 5, int(i / 5)].grid(True)
         ax[i % 5, int(i / 5)].set_title(region + ' - ' + df.columns[i + 1], fontsize=14)
         ax[i % 5, int(i / 5)].set_ylabel('Google Trend', fontsize=12)
+
     fig.autofmt_xdate()
     fig.tight_layout()
-
     file_path = os.getcwd() + Constant.GT_FIGURE_NAME_PREFIX + region + '_' + figure_stage + '.png'
     fig.savefig(file_path, bbox_inches="tight")
 
@@ -333,7 +334,7 @@ def select_item_impacted_by_covid19(df: pd.DataFrame) -> list:
     kw_list = []
     for item in df.columns[1:]:
         skew = df[item].skew()
-        past_max = df[df['date'] < datetime.date(2020, 1, 1)][item].max()
+        past_max = df[df['date'].dt.date < datetime.date(2020, 1, 1)][item].max()
         if skew > 4 and past_max < 50:
             kw_list.append(item)
     return kw_list
@@ -421,7 +422,7 @@ def awareness_date_report(first_confirmed_date: datetime, keywords_max_dates_pai
     """
     report = {}
     report['first_confirmed_date'] = first_confirmed_date
-    time_gap = {k: (v - first_confirmed_date).days for k, v in keywords_max_dates_pairs.items()}
+    time_gap = {k: (v.date() - first_confirmed_date).days for k, v in keywords_max_dates_pairs.items()}
     report['awareness_time_gap(days)'] = int(sum([time_gap[key] for key in time_gap]) / float(len(time_gap)))
     report['mean_awareness_date'] = first_confirmed_date + datetime.timedelta(
         days=report['awareness_time_gap(days)'])
@@ -452,6 +453,7 @@ def plot_confirmed_number_and_awareness_comparison(data_manager: dict, region1: 
         else:
             region_df, region, region_awareness_report = region2_df, region2, region2_awareness_report
         x = region_df['date']
+
         ax[i].plot(x, region_df['Confirmed'], lw=2, label='Confirmed Number')
         ax[i].axvline(x=region_awareness_report['first_confirmed_date'], color='darkred', lw=2)
         ax[i].text(region_awareness_report['first_confirmed_date'] - datetime.timedelta(days=8),
@@ -492,6 +494,7 @@ if __name__ == '__main__':
     # Create COVID-19 data frame from start date to end date (default is 04-22-2020)
     create_data_folder(Constant.COVID_RAW_DATA_DIR)
     date_list = generate_date_list("01-22-2020")
+
     df = fetch_countries_COVID19_data_with_dates(date_list)
 
     # Establish the target countries in Abbreviation format
@@ -511,6 +514,8 @@ if __name__ == '__main__':
         country_raw_df = get_country_df(df, country)
         data_manager[country] = {}
         data_manager[country]["COVID_19_raw_data"] = country_raw_df
+        # print("--------- country " + country + "---------------------------------")
+        # print(country_raw_df.head(10))
 
     # ------------------------------------------------------------------------------------------------------
     # Plot the long-term(5 years) google trend of each item for observing the search trend.
@@ -581,20 +586,21 @@ if __name__ == '__main__':
         country_GT_df = data_manager[country]["GT_DF"]
         representative_items = data_manager[country]['representative_items']
         country_GT_df = pd.concat([country_GT_df['date'], country_GT_df[representative_items]], sort=False, axis=1)
-
         country_COVID_19_df = data_manager[country]['COVID_19_raw_data']
         new_country_GT_df = country_GT_df.copy()
 
         # merge google trend and COVID-19 data frame
         new_country_GT_df = pd.merge(new_country_GT_df, country_COVID_19_df, left_on=['date'], right_on=['Date'], how='left').drop(['Date'], axis=1)
-        country_full_name = convert_country_abbreviation_to_fullname(Constant.TW)
+        country_full_name = country
+        if country == Constant.TW:
+            country_full_name = convert_country_abbreviation_to_fullname(Constant.TW)
+
         new_country_GT_df['Country'] = new_country_GT_df['Country'].fillna(country_full_name)
         new_country_GT_df = new_country_GT_df.fillna(0)
         data_manager[country]['COVID_19_with_google_trend'] = new_country_GT_df
-
         first_confirmed_date = first_confirmed_date_dict[country]
         plot_items_with_confirmed_case(new_country_GT_df, representative_items, first_confirmed_date, country)
-
+        
     # ------------------------------------------------------------------------------------------------------
     # Determine which country has better public awareness about the COVID-19 by comparing the time inteval
     # in different region by plotting the number of confirmed cases and awareness date of Taiwan and US
