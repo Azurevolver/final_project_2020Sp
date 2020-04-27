@@ -1,9 +1,9 @@
 DATE_FORMAT = "%m-%d-%Y"
 PLOT_DATE_FORMAT = "%Y-%m-%d"
-DATA_URL = "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/"
+DATA_URL = "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global"
 DATA_POSTFIX_CSV = ".csv"
 COUNTRY_REGION = "Country/Region"
-TAIWAN = "Taiwan"
+TAIWAN = "Taiwan*"
 TW = "TW"
 US = "US"
 

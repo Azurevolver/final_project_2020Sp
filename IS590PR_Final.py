@@ -13,7 +13,7 @@ import Constant
 import doctest
 import os
 
-
+'''
 def generate_date_list(start_date_str: str, end_date: datetime.date = datetime.datetime.strptime("04-22-2020", Constant.DATE_FORMAT)) -> list:
     """
     Create a list of date
@@ -80,8 +80,10 @@ def generate_date_list(start_date_str: str, end_date: datetime.date = datetime.d
     date_list = [start + datetime.timedelta(days=x) for x in range(0, (end - start).days)]
     date_list = [date.strftime(Constant.DATE_FORMAT) for date in date_list]
     return date_list
+'''
 
 
+'''
 def get_CODIV19_data_from_remote(url: str, date: str) -> pd.DataFrame:
     """
     Access the COVID-19 confirmed cases from Taiwan CDC and US CDC through JHU open-sourced project on github
@@ -103,29 +105,30 @@ def get_CODIV19_data_from_remote(url: str, date: str) -> pd.DataFrame:
         raise ValueError("Empty date")
         return
 
-    file_path = os.getcwd() + Constant.COVID_RAW_DATA_DIR + "/" + date + Constant.DATA_POSTFIX_CSV
-    single_date_df = None
+    file_path = os.getcwd() + Constant.COVID_RAW_DATA_DIR + "/" + Constant.DATA_POSTFIX_CSV
+    whole_df = None
     if os.path.exists(file_path) is False:
         try:
-            single_date_df = pd.read_csv(url, usecols=lambda x: x in ['Country/Region', 'Country_Region', 'Confirmed',
-                                                                      'Deaths', 'Recovered'])
+            whole_df = pd.read_csv(url, usecols=lambda x: x not in ['Province/State', 'Lat', 'Long'])
             # print("-----------------------------------------" + date + "--------------------------------------------------")
-            # print(single_date_df.to_string())
+            # print(whole_df.to_string())
         except FileNotFoundError as error:
             print("FileNotFoundError occurs: " + repr(error))
             return
 
-        single_date_df.to_csv(file_path, header=True, index=False)
+        whole_df.to_csv(file_path, header=True, index=False)
     else:
-        single_date_df = pd.read_csv(file_path)
+        whole_df = pd.read_csv(file_path)
 
-    single_date_df.columns = ['Country', 'Confirmed', 'Deaths', 'Recovered']
-    single_date_df = single_date_df[single_date_df['Country'].isin(['US', 'Taiwan', 'Taiwan*', 'Taipei and environs'])]
-    single_date_df = single_date_df.groupby(['Country']).sum().reset_index()
-    single_date_df['Date'] = date
+    whole_df = whole_df[whole_df['Country/Region'].isin(['US', 'Taiwan*'])].reset_index(drop=True)
+    whole_df.loc[whole_df['Country/Region'] == 'Taiwan*', 'Country/Region'] = 'Taiwan'
+    whole_df = pd.melt(whole_df, id_vars='Country/Region', value_vars=whole_df.columns[1:])
+    whole_df.columns = ['Country', 'Date', 'Confirmed']
+    whole_df['Date'] = pd.to_datetime(whole_df['Date'])
 
-    return single_date_df
-
+    return whole_df
+'''
+# TODO: 是否刪除上面兩個FUNCTION
 
 def create_data_folder(sub_directory: str):
     """
@@ -184,6 +187,7 @@ def get_country_df(origin_df: pd.DataFrame, country: str = "") -> pd.DataFrame:
     >>> tw_df.iloc[0]["Confirmed"]
     1.0
     """
+    # TODO: Test Case重寫
     if country == Constant.TW:
         country = Constant.TAIWAN
 
@@ -193,11 +197,16 @@ def get_country_df(origin_df: pd.DataFrame, country: str = "") -> pd.DataFrame:
     if origin_df is None:
         raise ValueError("Origin data frame is not existed")
 
-    origin_df["Date"] = pd.to_datetime(origin_df["Date"])
-    return origin_df[origin_df['Country'] == country].copy()
+    df = origin_df[origin_df['Country/Region'] == country].copy()
+    df.loc[df['Country/Region'] == 'Taiwan*', 'Country/Region'] = 'Taiwan'
+    df = pd.melt(df, id_vars='Country/Region', value_vars=df.columns[1:])
+    df.columns = ['Country', 'Date', 'Confirmed']
+    df['Date'] = pd.to_datetime(df['Date'])
+
+    return df
 
 
-def fetch_countries_COVID19_data_with_dates(dates: list) -> pd.DataFrame:
+def fetch_countries_COVID19_data_with_dates() -> pd.DataFrame:
     """
     Create new time-series data frame of COVID-19 by sending request to JHU open-sourced project on Github
     :param dates: dates list
@@ -213,18 +222,29 @@ def fetch_countries_COVID19_data_with_dates(dates: list) -> pd.DataFrame:
     >>> print(new_df.iloc[0].Country + " has " + str(new_df.iloc[0].Confirmed) + " confirmed case(s)")
     Taiwan has 1.0 confirmed case(s)
     """
+    '''
     if len(dates) == 0:
-        raise ValueError("Empty date list")
-        return None
+    raise ValueError("Empty date list")
+    return None
+    '''
+    # TODO: Test Case重寫
+    file_path = os.getcwd() + Constant.COVID_RAW_DATA_DIR + "/COVID19_till_" + datetime.datetime.today().strftime('%Y-%m-%d') + Constant.DATA_POSTFIX_CSV
+    whole_df = None
+    if os.path.exists(file_path) is False:
+        try:
+            request_url = Constant.DATA_URL + Constant.DATA_POSTFIX_CSV
+            whole_df = pd.read_csv(request_url, usecols=lambda x: x not in (['Province/State', 'Lat', 'Long']))
+            # print("-----------------------------------------" + date + "--------------------------------------------------")
+            # print(whole_df.to_string())
+        except FileNotFoundError as error:
+            print("FileNotFoundError occurs: " + repr(error))
+            return
 
-    df = pd.DataFrame(columns=['Date', 'Country', 'Confirmed', 'Deaths', 'Recovered'])
-    for date in dates:
-        request_url = Constant.DATA_URL + date + Constant.DATA_POSTFIX_CSV
-        date_info = get_CODIV19_data_from_remote(request_url, date)
-        df = pd.concat([df, date_info], sort=False)
+        whole_df.to_csv(file_path, header=True, index=False)
+    else:
+        whole_df = pd.read_csv(file_path)
 
-    df.loc[df['Country'] != 'US', 'Country'] = 'Taiwan'
-    return df
+    return whole_df
 
 
 def get_keyword_list(country: str) -> list:
@@ -452,7 +472,7 @@ def plot_confirmed_number_and_awareness_comparison(data_manager: dict, region1: 
             region_df, region, region_awareness_report = region1_df, region1, region1_awareness_report
         else:
             region_df, region, region_awareness_report = region2_df, region2, region2_awareness_report
-        x = region_df['date']
+        x = region_df['date'].dt.date
 
         ax[i].plot(x, region_df['Confirmed'], lw=2, label='Confirmed Number')
         ax[i].axvline(x=region_awareness_report['first_confirmed_date'], color='darkred', lw=2)
@@ -493,9 +513,10 @@ if __name__ == '__main__':
     # ------------------------------------------------------------------------------------------------------
     # Create COVID-19 data frame from start date to end date (default is 04-22-2020)
     create_data_folder(Constant.COVID_RAW_DATA_DIR)
-    date_list = generate_date_list("01-22-2020")
+    #date_list = generate_date_list("01-22-2020")
 
-    df = fetch_countries_COVID19_data_with_dates(date_list)
+    # TODO: Decide whether create date list
+    df = fetch_countries_COVID19_data_with_dates()
 
     # Establish the target countries in Abbreviation format
     selected_countries = [Constant.TW, Constant.US]
@@ -522,7 +543,7 @@ if __name__ == '__main__':
     create_data_folder(Constant.GT_5_YR_DATA_DIR)
     pytrend = TrendReq(hl='en-US', tz=360)
     gt_start_date = "2015-04-19"
-    gt_end_date = "2020-04-19"
+    gt_end_date = "2020-04-22"
     create_data_folder(Constant.GT_FIGURE_DIR)
 
     for country in selected_countries:
