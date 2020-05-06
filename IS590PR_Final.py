@@ -371,7 +371,21 @@ def select_item_impacted_by_covid19(df: pd.DataFrame) -> list:
     2. low max value of the search volume before COVID-19
     :param df: google trend dataframe of the items
     :return: list of items impacted by COVID-19
+    >>> pytrend = TrendReq(hl='en-US', tz=360)
+    >>> start_date = "2015-04-19"
+    >>> end_date = "2020-04-22"
+    >>> keyword_list = get_keyword_list(Constant.US)
+    >>> US_df = create_google_trend_df(pytrend, keyword_list, Constant.US, start_date, end_date)
+    >>> impacted_keyword_list = select_item_impacted_by_covid19(US_df)
+    >>> print(len(impacted_keyword_list))
+    9
+    >>> impacted_keyword_list = select_item_impacted_by_covid19(None)
+    Traceback (most recent call last):
+    ValueError: Data frame not exist
     """
+    if df is None:
+        raise ValueError("Data frame not exist")
+
     kw_list = []
     for item in df.columns[1:]:
         skew = df[item].skew()
@@ -445,6 +459,11 @@ def plot_items_with_confirmed_case(region_df: pd.DataFrame, item_name_list: list
 
 
 def convert_country_abbreviation_to_fullname(abbreviation: str) -> str:
+    """
+
+    :param abbreviation:
+    :return:
+    """
     if abbreviation == Constant.TW:
         return Constant.TAIWAN
 
@@ -591,7 +610,6 @@ if __name__ == '__main__':
 
     # ------------------------------------------------------------------------------------------------------
     # Short-term google trend observation(this year)
-    # TODO: Paraphrase this section and explain why 14 days in the select_representative_kw()
     # From the long-term keyword selection, we then further select the representative items which has sharp increase
     # google trend during COVID-19 by observing short-term(this year) trend.
     # The selection criteria:
