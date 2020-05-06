@@ -128,7 +128,7 @@ def get_CODIV19_data_from_remote(url: str, date: str) -> pd.DataFrame:
 
     return whole_df
 '''
-# TODO: 是否刪除上面兩個FUNCTION
+# TODO: 刪除上面兩個FUNCTION
 
 def create_data_folder(sub_directory: str):
     """
@@ -251,6 +251,21 @@ def fetch_countries_COVID19_data_with_dates(end: datetime) -> pd.DataFrame:
 
 
 def get_keyword_list(country: str) -> list:
+    """
+
+    :param country:
+    :return:
+    >>> new_country = Constant.US
+    >>> us_list = get_keyword_list(new_country)
+    >>> us_list[0]
+    'disinfectants'
+    >>> get_keyword_list("")
+    Traceback (most recent call last):
+    ValueError: Country is empty
+    """
+    if country is None or country == "":
+        raise ValueError("Country is empty")
+
     keywords = []
     if country == Constant.US:
         keywords = Constant.KEY_WORDS_LIST_EN
