@@ -138,9 +138,9 @@ def create_data_folder(sub_directory: str):
     >>> test_directory = "/test"
     >>> create_data_folder(test_directory)
     Successfully created the directory
-    >>> test_directory = "/test"
+    >>> test_directory = "/COVID_RAW_DATA"
     >>> create_data_folder(test_directory)
-    Data folder existed
+    /COVID_RAW_DATAData folder existed
     >>> empty_dir = ""
     >>> create_data_folder(empty_dir)
     Data folder existed
@@ -175,6 +175,9 @@ def get_country_df(origin_df: pd.DataFrame, country: str = "") -> pd.DataFrame:
     >>> origin_df = fetch_countries_COVID19_data_with_dates(date_list)
     >>> origin_df.loc[origin_df['Country'] != Constant.US, 'Country'] = Constant.TAIWAN
     >>> empty_country_df = get_country_df(origin_df, "Some Country")
+    Traceback (most recent call last):
+    ValueError: No such country
+    >>> empty_country_df = get_country_df(None, "Some Country")
     Traceback (most recent call last):
     ValueError: No such country
     >>> start_date = "01-22-2020"
