@@ -252,9 +252,9 @@ def fetch_countries_COVID19_data_with_dates(end: datetime) -> pd.DataFrame:
 
 def get_keyword_list(country: str) -> list:
     """
-
-    :param country:
-    :return:
+    Access the keyword list for google search
+    :param country: country abbreviation
+    :return: a keyword list
     >>> new_country = Constant.US
     >>> us_list = get_keyword_list(new_country)
     >>> us_list[0]
@@ -292,9 +292,12 @@ def create_google_trend_df(pytrend: TrendReq, keywords: list, region: str,
     >>> keyword_list = ['mask', 'sanitizer', 'toilet paper']
     >>> US_df = create_google_trend_df(pytrend, keyword_list, "US", start_date, end_date)
     >>> str(US_df.iloc[-1]["date"])
-    '2020-01-31 00:00:00'
+    '2020-04-22 00:00:00'
     >>> US_df.iloc[-1]["mask"]
-    96
+    29
+    >>> spain_df = create_google_trend_df(pytrend, keyword_list, "Spain", start_date, end_date)
+    Traceback (most recent call last):
+    ValueError: Region is not well defined
     """
     google_trend_df = None
 
