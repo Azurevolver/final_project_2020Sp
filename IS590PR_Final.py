@@ -460,12 +460,16 @@ def plot_items_with_confirmed_case(region_df: pd.DataFrame, item_name_list: list
 
 def convert_country_abbreviation_to_fullname(abbreviation: str) -> str:
     """
-
-    :param abbreviation:
-    :return:
+    convert country's abbreviation to its full name
+    :param abbreviation: country abbreviation
+    :return: country full name
+    >>> convert_country_abbreviation_to_fullname("TW")
+    'Taiwan*'
     """
     if abbreviation == Constant.TW:
         return Constant.TAIWAN
+    else:
+        return None
 
 
 def awareness_date_report(first_confirmed_date: datetime, keywords_max_dates_pairs: dict) -> dict:
