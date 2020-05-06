@@ -209,40 +209,40 @@ def get_country_df(origin_df: pd.DataFrame, country: str = "") -> pd.DataFrame:
     return df
 
 
-def fetch_countries_COVID19_data_with_dates() -> pd.DataFrame:
+def fetch_countries_COVID19_data_with_dates(end: datetime) -> pd.DataFrame:
     """
     Create new time-series data frame of COVID-19 by sending request to JHU open-sourced project on Github
-    :param dates: dates list
+    :param end: datetime
     :return: a data frame of COVID-19 within specific countries and time
-    >>> dates = []
-    >>> fetch_countries_COVID19_data_with_dates(dates)
+
+    >>> fetch_countries_COVID19_data_with_dates("")
     Traceback (most recent call last):
-    ValueError: Empty date list
-    >>> start = "01-22-2020"
-    >>> end = datetime.datetime.strptime("01-23-2020", Constant.DATE_FORMAT)
-    >>> date_list = generate_date_list(start, end)
-    >>> new_df = fetch_countries_COVID19_data_with_dates(date_list)
-    >>> print(new_df.iloc[0].Country + " has " + str(new_df.iloc[0].Confirmed) + " confirmed case(s)")
-    Taiwan has 1.0 confirmed case(s)
+    ValueError: Empty end date
+
+    >>> end = datetime.datetime.strptime("01-23-20", Constant.DATE_FORMAT)
+    >>> new_df = fetch_countries_COVID19_data_with_dates(end)
+    >>> print(new_df.iloc[207]["Country/Region"] + " has " + str(new_df.iloc[207]["1/23/20"]) + " confirmed case(s)")
+    Taiwan* has 1 confirmed case(s)
     """
-    '''
-    if len(dates) == 0:
-    raise ValueError("Empty date list")
-    return None
-    '''
-    # TODO: Test Case重寫
-    file_path = os.getcwd() + Constant.COVID_RAW_DATA_DIR + "/COVID19_till_" + datetime.datetime.today().strftime('%Y-%m-%d') + Constant.DATA_POSTFIX_CSV
+    if end == "" or end is None:
+        raise ValueError("Empty end date")
+        return
+
+    file_path = os.getcwd() + Constant.COVID_RAW_DATA_DIR + "/COVID19_till_" + end.strftime('%Y-%m-%d') + Constant.DATA_POSTFIX_CSV
     whole_df = None
     if os.path.exists(file_path) is False:
         try:
             request_url = Constant.DATA_URL + Constant.DATA_POSTFIX_CSV
             whole_df = pd.read_csv(request_url, usecols=lambda x: x not in (['Province/State', 'Lat', 'Long']))
-            # print("-----------------------------------------" + date + "--------------------------------------------------")
-            # print(whole_df.to_string())
+
         except FileNotFoundError as error:
             print("FileNotFoundError occurs: " + repr(error))
             return
 
+        # calculate how many columns need to save
+        start = datetime.datetime.strptime("01-22-20", Constant.DATE_FORMAT)
+        num_of_col = 1 + (end - start).days
+        whole_df = whole_df.iloc[:, 0:num_of_col + 1]
         whole_df.to_csv(file_path, header=True, index=False)
     else:
         whole_df = pd.read_csv(file_path)
@@ -516,10 +516,8 @@ if __name__ == '__main__':
     # ------------------------------------------------------------------------------------------------------
     # Create COVID-19 data frame from start date to end date (default is 04-22-2020)
     create_data_folder(Constant.COVID_RAW_DATA_DIR)
-    #date_list = generate_date_list("01-22-2020")
-
-    # TODO: Decide whether create date list
-    df = fetch_countries_COVID19_data_with_dates()
+    end_date = datetime.datetime.strptime("04-22-20", Constant.DATE_FORMAT)
+    df = fetch_countries_COVID19_data_with_dates(end_date)
 
     # Establish the target countries in Abbreviation format
     selected_countries = [Constant.TW, Constant.US]
