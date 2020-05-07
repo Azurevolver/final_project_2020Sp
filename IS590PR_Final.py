@@ -472,7 +472,7 @@ def plot_items_with_confirmed_case(region_df: pd.DataFrame, item_name_list: list
     if region_df is None:
         raise ValueError("Data frame not exist")
 
-    x = region_df['date']
+    x = region_df['date'].dt.date
     fig, ax = plt.subplots(figsize=(10, 4))
     ax.plot(x, region_df['Confirmed'], lw=2, label='Confirmed Num', color='black')
     ax.axvline(x=first_confirmed_date, color='darkred')
