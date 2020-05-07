@@ -13,122 +13,6 @@ import Constant
 import doctest
 import os
 
-'''
-def generate_date_list(start_date_str: str, end_date: datetime.date = datetime.datetime.strptime("04-22-2020", Constant.DATE_FORMAT)) -> list:
-    """
-    Create a list of date
-    :param start_date_str: date string in %m-%d-%Y format
-    :param end_date: date string in %m-%d-%Y format
-    :return: a list of date
-
-    >>> start_date = ""
-    >>> generate_date_list(start_date)
-    Traceback (most recent call last):
-    ValueError: Empty start date
-    >>> start_date = "01-22-2020"
-    >>> end_date = ""
-    >>> generate_date_list(start_date, end_date)
-    Traceback (most recent call last):
-    ValueError: Empty end date
-    >>> start_date = "01-32-2020"
-    >>> generate_date_list(start_date)
-    Value Error occur: ValueError("time data '01-32-2020' does not match format '%m-%d-%Y'")
-    >>> start_date = "01/22/2020"
-    >>> generate_date_list(start_date)
-    Value Error occur: ValueError("time data '01/22/2020' does not match format '%m-%d-%Y'")
-    >>> start_date = "01-22-2020"
-    >>> end_date = "04-18-2020"
-    >>> generate_date_list(start_date, end_date)
-    Traceback (most recent call last):
-    TypeError: Type Error: end date should be datetime.date type
-    >>> start_date = "04-21-2020"
-    >>> end_date_str = "04-18-2020"
-    >>> end_date = datetime.datetime.strptime(end_date_str, Constant.DATE_FORMAT)
-    >>> generate_date_list(start_date, end_date)
-    Traceback (most recent call last):
-    ValueError: Start date cannot larger than end date
-    >>> start_date = "04-11-2020"
-    >>> end_date_str = "04-13-2020"
-    >>> end_date = datetime.datetime.strptime(end_date_str, Constant.DATE_FORMAT)
-    >>> date_list = generate_date_list(start_date, end_date)
-    >>> print(date_list)
-    ['04-11-2020', '04-12-2020']
-    """
-    if start_date_str == "" or start_date_str is None:
-        raise ValueError("Empty start date")
-        return
-    elif end_date == "" or end_date is None:
-        raise ValueError("Empty end date")
-        return
-
-    start = None
-    try:
-        start = datetime.datetime.strptime(start_date_str, Constant.DATE_FORMAT)
-    except ValueError as error:
-        print("Value Error occur:", repr(error))
-        return
-
-    end = end_date
-    if isinstance(end, datetime.date) is False:
-        raise TypeError("Type Error: end date should be datetime.date type")
-        return
-
-    if end < start:
-        raise ValueError("Start date cannot larger than end date")
-        return
-
-    date_list = [start + datetime.timedelta(days=x) for x in range(0, (end - start).days)]
-    date_list = [date.strftime(Constant.DATE_FORMAT) for date in date_list]
-    return date_list
-'''
-
-
-'''
-def get_CODIV19_data_from_remote(url: str, date: str) -> pd.DataFrame:
-    """
-    Access the COVID-19 confirmed cases from Taiwan CDC and US CDC through JHU open-sourced project on github
-    :param url: the prefix of JHU open-sourced project URL
-    :param date: one specific date in %m-%d-%Y format
-    :return: a data frame contains COVID-19 data within target countries
-    >>> date = "01-22-2020"
-    >>> url = Constant.DATA_URL + date + Constant.DATA_POSTFIX_CSV
-    >>> jan_22_df = get_CODIV19_data_from_remote(url, date)
-    >>> jan_22_df.iloc[0].Country
-    'Taiwan'
-    >>> jan_22_df.iloc[0].Confirmed
-    1.0
-    >>> empty_date_df = get_CODIV19_data_from_remote(url, "")
-    Traceback (most recent call last):
-    ValueError: Empty date
-    """
-    if date == "" or date is None:
-        raise ValueError("Empty date")
-        return
-
-    file_path = os.getcwd() + Constant.COVID_RAW_DATA_DIR + "/" + Constant.DATA_POSTFIX_CSV
-    whole_df = None
-    if os.path.exists(file_path) is False:
-        try:
-            whole_df = pd.read_csv(url, usecols=lambda x: x not in ['Province/State', 'Lat', 'Long'])
-            # print("-----------------------------------------" + date + "--------------------------------------------------")
-            # print(whole_df.to_string())
-        except FileNotFoundError as error:
-            print("FileNotFoundError occurs: " + repr(error))
-            return
-
-        whole_df.to_csv(file_path, header=True, index=False)
-    else:
-        whole_df = pd.read_csv(file_path)
-
-    whole_df = whole_df[whole_df['Country/Region'].isin(['US', 'Taiwan*'])].reset_index(drop=True)
-    whole_df.loc[whole_df['Country/Region'] == 'Taiwan*', 'Country/Region'] = 'Taiwan'
-    whole_df = pd.melt(whole_df, id_vars='Country/Region', value_vars=whole_df.columns[1:])
-    whole_df.columns = ['Country', 'Date', 'Confirmed']
-    whole_df['Date'] = pd.to_datetime(whole_df['Date'])
-
-    return whole_df
-'''
-# TODO: 刪除上面兩個FUNCTION
 
 def create_data_folder(sub_directory: str):
     """
@@ -205,11 +89,9 @@ def fetch_countries_COVID19_data_with_dates(end: datetime) -> pd.DataFrame:
     Create new time-series data frame of COVID-19 by sending request to JHU open-sourced project on Github
     :param end: datetime
     :return: a data frame of COVID-19 within specific countries and time
-
     >>> fetch_countries_COVID19_data_with_dates("")
     Traceback (most recent call last):
     ValueError: Empty end date
-
     >>> end = datetime.datetime.strptime("01-23-20", Constant.DATE_FORMAT)
     >>> new_df = fetch_countries_COVID19_data_with_dates(end)
     >>> print(new_df.iloc[207]["Country/Region"] + " has " + str(new_df.iloc[207]["1/23/20"]) + " confirmed case(s)")
