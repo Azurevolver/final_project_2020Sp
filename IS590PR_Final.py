@@ -492,7 +492,7 @@ def plot_items_with_confirmed_case(region_df: pd.DataFrame, item_name_list: list
     ax2.set_ylabel('Google Trend', fontsize=18, color="Red")
     lines, labels = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines + lines2, labels + labels2, loc=0, fontsize=8)
+    ax2.legend(lines + lines2, labels + labels2, fontsize=8, loc='upper left')
 
     file_path = os.getcwd() + Constant.GT_FIGURE_NAME_PREFIX + region + '_' + \
                 Constant.GT_FIGURE_WITH_COMFIRMED_CASE + '.png'
