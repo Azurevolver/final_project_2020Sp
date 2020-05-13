@@ -2,8 +2,30 @@
 Each team creates a fork from this for their course project
 
 # Team:
-@azurevolver, @wenyu125
+Yuan-Ching (Alan) Chen : @azurevolver
+Jasmine Kuo : @wenyu125
 
+# Contribution:
+The following is a general division of work. Most of the content is discussed and revised together.
+
+Yuan-Ching (Alan) Chen :
+Data Collection (Google Trend & COVID19 dataset) and Data Preprocess
+  create_data_folder()
+  get_country_df()
+  fetch_countries_COVID19_data_with_dates()
+  get_keyword_list()
+  create_google_trend_df()
+  convert_country_abbreviation_to_fullname()
+  
+Jasmine Kuo :
+Data Preprocess, Data Analysis and Data Visulization
+  plot_google_trend_of_item()
+  select_item_impacted_by_covid19()
+  select_representative_kw()
+  plot_items_with_confirmed_case()
+  awareness_date_report()
+  plot_confirmed_number_and_awareness_comparison()
+  
 # Introduction
 Our team aims to find whether the search volume of specific products on Google Trend is positively related to the confirmed cases of COVID-19.
 So we raise two research questions:
